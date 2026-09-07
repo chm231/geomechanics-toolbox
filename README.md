@@ -32,7 +32,8 @@ MATLAB Runtime 없이 실행되는 Python(PySide6 + matplotlib) 버전으로 옮
 |---|---|---|---|
 | Hydrofracturing Estimation | `geomech/core/hydrofrac.py` | `geomech/gui/hydrofrac_panel.py` | `tests/test_hydrofrac.py` (5 케이스, 상대오차 1e-8) |
 | Temperature Prediction | `geomech/core/thermal.py`, `thermal_project.py` | `geomech/gui/thermal_panel.py` | `tests/test_thermal.py` (5 케이스; Bodvarsson 1e-8, Talbot 역변환 모델 2e-3 °C) |
-| 3D Mohr Circle / Strength Anisotropy | 예정 | | |
+| 3D Mohr Circle | `geomech/core/mohr.py` | `geomech/gui/mohr_panel.py` | `tests/test_mohr_aniso.py` (6 케이스, 1e-10; 방향코사인 해석해와도 일치) |
+| Strength Anisotropy | `geomech/core/anisotropy.py` | `geomech/gui/anisotropy_panel.py` | `tests/test_mohr_aniso.py` (4 케이스, 1e-10; Jaeger 식과 일치) |
 | Borehole Stability | 예정 | | |
 | Stereographic Projection | 예정 | | |
 | Units | `geomech/core/units.py` (일부) | | |
@@ -49,6 +50,7 @@ MATLAB 기준값 재생성(MATLAB 설치 필요):
 ```bash
 matlab -batch "run('tools/gen_reference_hydrofrac.m')"
 matlab -batch "run('tools/gen_reference_thermal.m')"
+matlab -batch "run('tools/gen_reference_mohr_aniso.m')"   # .mlapp 콜백의 계산부를 함수로 복사해 실행
 ```
 
 이식 중 확인된 MATLAB 원본의 문제와 Python에서의 처리:
@@ -59,6 +61,11 @@ matlab -batch "run('tools/gen_reference_thermal.m')"
   해당 극한의 닫힌 해(erfc)를 사용합니다.
 - Talbot 역변환(M = 64)은 항 크기가 e²⁵ 수준이라 라이브러리마다 1e‑6 정도 차이가 납니다.
   표시 정밀도(0.01 °C)보다 훨씬 작습니다.
+- Strength Anisotropy의 각도 β는 σ₁과 약면 **법선** 사이 각입니다(Jaeger 식의 β와 여각 관계).
+  원본은 축 라벨이 'Deg'만 있어 Python 화면에 명시했습니다. 원본은 c = 0, σ₃ = 0 일 때
+  β = 90° − φ 에서 0/0 = NaN 이 되지만 Python은 극한값 0을 씁니다.
+- 3D Mohr Circle은 원본과 같은 작도법(보조원 교점)으로 (σn, τn)을 구하며, 방향코사인 해석해와
+  1e‑9 이내로 일치함을 테스트로 확인했습니다. 원본의 `vars.mat` 파일 교환은 없어졌습니다.
 
 ## 폴더 구조
 

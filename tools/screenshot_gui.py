@@ -52,7 +52,40 @@ def thermal_steps(out: Path):
     return panel, [s1]
 
 
-SCENARIOS = {"hydrofrac": hydrofrac_steps, "thermal": thermal_steps}
+def mohr_steps(out: Path):
+    from geomech.gui.mohr_panel import MohrPanel
+    panel = MohrPanel()
+    panel.resize(1100, 700)
+    panel.show()
+
+    def s1():
+        panel.add_plot()
+        panel.grab().save(str(out / "mohr_2d.png"))
+        panel.view_3d()
+        panel.grab().save(str(out / "mohr_3d.png"))
+        panel.close()
+
+    return panel, [s1]
+
+
+def anisotropy_steps(out: Path):
+    from geomech.gui.anisotropy_panel import AnisotropyPanel
+    panel = AnisotropyPanel()
+    panel.resize(1000, 600)
+    panel.show()
+
+    def s1():
+        panel.add_plot()
+        panel.fields["sigma_3"].setText("15")
+        panel.add_plot()
+        panel.grab().save(str(out / "anisotropy.png"))
+        panel.close()
+
+    return panel, [s1]
+
+
+SCENARIOS = {"hydrofrac": hydrofrac_steps, "thermal": thermal_steps,
+             "mohr": mohr_steps, "anisotropy": anisotropy_steps}
 
 
 def main():
