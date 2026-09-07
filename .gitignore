@@ -23,6 +23,16 @@ DFN_points_xyz.txt
 *.h5
 *.npy
 
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+.venv/
+venv/
+
 # --- 로컬 환경 ---
 .vscode/
 .idea/

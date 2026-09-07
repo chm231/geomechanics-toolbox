@@ -22,11 +22,44 @@ MATLAB Compiler로 독립 실행 파일(`Geomechanics_Toolbox.exe`)로도 배포
 | Strength Anisotropy | `anisotropy.mlapp` | 강도 이방성 |
 | (공통) | `Units.m` / `Units.fig`, `descriptions.m` | 단위 변환, 도움말 화면 |
 
+## Python 포팅 (진행 중)
+
+MATLAB Runtime 없이 실행되는 Python(PySide6 + matplotlib) 버전으로 옮기는 작업을 진행 중입니다.
+계산 코드(`geomech/core/`)와 화면 코드(`geomech/gui/`)를 분리하고, 모듈마다 MATLAB 원본 출력값과
+대조하는 회귀 테스트(`tests/`)를 둡니다.
+
+| 모듈 | 계산 코드 | GUI | MATLAB 대조 테스트 |
+|---|---|---|---|
+| Hydrofracturing Estimation | `geomech/core/hydrofrac.py` | `geomech/gui/hydrofrac_panel.py` | `tests/test_hydrofrac.py` (5 케이스, 상대오차 1e-8) |
+| Temperature Prediction | 예정 | | |
+| 3D Mohr Circle / Strength Anisotropy | 예정 | | |
+| Borehole Stability | 예정 | | |
+| Stereographic Projection | 예정 | | |
+| Units | `geomech/core/units.py` (일부) | | |
+| 3D DFN Generation | 예정 | | |
+
+```bash
+pip install -e .[dev]          # numpy, scipy, matplotlib, PySide6, pytest
+geomech                        # 런처 실행 (또는 python -m geomech.gui.app)
+pytest                         # MATLAB 대조 테스트
+```
+
+MATLAB 기준값 재생성(MATLAB 설치 필요):
+
+```bash
+matlab -batch "run('tools/gen_reference_hydrofrac.m')"
+```
+
 ## 폴더 구조
 
 ```
 .
-├── src/                      # 툴박스 소스 (Application Compiler 프로젝트가 참조하는 파일 전체)
+├── geomech/                  # Python 패키지
+│   ├── core/                 #   계산 모듈 (SI 단위, GUI 의존성 없음)
+│   └── gui/                  #   PySide6 화면 (app.py = 런처)
+├── tests/                    # pytest + MATLAB 기준값(tests/reference/*.json)
+├── tools/                    # MATLAB 기준값 생성 스크립트, GUI 스크린샷 스크립트
+├── src/                      # MATLAB 툴박스 소스 (Application Compiler 프로젝트가 참조하는 파일 전체)
 │   ├── Simulator_int.mlapp   # 메인 런처
 │   ├── Geomechanics Toolbox.prj   # 앱 패키징 프로젝트 (${PROJECT_ROOT} 상대경로)
 │   ├── *.m / *.fig / *.mlapp / *.jpg
