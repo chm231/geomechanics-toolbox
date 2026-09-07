@@ -10,13 +10,14 @@ from PySide6.QtWidgets import (
 
 from geomech import __version__
 from geomech.gui.hydrofrac_panel import HydrofracPanel
+from geomech.gui.thermal_panel import ThermalPanel
 
 # (label, factory or None while not yet ported) - order follows Simulator_int.mlapp
 MODULES = [
     ("Borehole Stability", None),
     ("Hydrofracturing Estimation", HydrofracPanel),
     ("Hydroshearing Estimation", None),
-    ("Temperature Prediction", None),
+    ("Temperature Prediction", ThermalPanel),
     ("Stereographic Projection", None),
     ("3D DFN Generation", None),
     ("3D Mohr Circle", None),
@@ -33,7 +34,7 @@ class Launcher(QMainWindow):
         self.setCentralWidget(central)
         v = QVBoxLayout(central)
         title = QLabel("Geomechanics Toolbox")
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("font-size: 22px; font-weight: bold; margin: 12px;")
         v.addWidget(title)
         grid = QGridLayout()
@@ -51,7 +52,7 @@ class Launcher(QMainWindow):
 
     def open_module(self, factory):
         w = factory()
-        w.setAttribute(Qt.WA_DeleteOnClose)
+        w.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         w.resize(1200, 720)
         w.show()
         self._windows.append(w)

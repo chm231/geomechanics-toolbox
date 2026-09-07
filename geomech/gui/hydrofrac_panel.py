@@ -21,7 +21,7 @@ class _Input(QWidget):
         super().__init__()
         self.kind = kind
         self.edit = QLineEdit(value)
-        self.edit.setAlignment(Qt.AlignRight)
+        self.edit.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.unit = QComboBox()
         self.unit.addItems(U.choices(kind))
         self.unit.setCurrentText(default_unit)

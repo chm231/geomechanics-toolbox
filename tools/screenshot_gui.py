@@ -1,7 +1,7 @@
-"""Open the launcher and the Hydrofracturing panel, run the default case,
-save screenshots and exit. Used to check the GUI renders without a human.
+"""Open the launcher and each ported panel, run its default case, save
+screenshots and exit. Used to check the GUI renders without a human.
 
-    python tools/screenshot_gui.py out_dir
+    python tools/screenshot_gui.py out_dir [panel ...]     (panels: hydrofrac thermal)
 """
 from __future__ import annotations
 
@@ -13,40 +13,79 @@ from PySide6.QtWidgets import QApplication
 
 from geomech.gui.app import Launcher
 from geomech.gui.hydrofrac_panel import HydrofracPanel
+from geomech.gui.thermal_panel import ThermalPanel
+
+
+def hydrofrac_steps(out: Path):
+    panel = HydrofracPanel()
+    panel.resize(1200, 720)
+    panel.show()
+
+    def s1():
+        panel.run()
+        panel.grab().save(str(out / "hydrofrac_history.png"))
+        panel.plot_profile()
+        panel.grab().save(str(out / "hydrofrac_profile.png"))
+        panel.plot_3d()
+        panel.grab().save(str(out / "hydrofrac_3d.png"))
+        panel.close()
+
+    return panel, [s1]
+
+
+def thermal_steps(out: Path):
+    panel = ThermalPanel()
+    panel.resize(1200, 720)
+    panel.show()
+
+    def s1():
+        panel.rb_model["gringarten"].setChecked(True)
+        panel.calculate()
+        panel.grab().save(str(out / "thermal_field.png"))
+        panel.plot_profile()
+        panel.ov_box["Q_m"].setChecked(True)
+        panel.ov_edit["Q_m"].setText("80")
+        panel.plot_profile()
+        panel.grab().save(str(out / "thermal_profile.png"))
+        panel.close()
+
+    return panel, [s1]
+
+
+SCENARIOS = {"hydrofrac": hydrofrac_steps, "thermal": thermal_steps}
 
 
 def main():
     out = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
+    names = sys.argv[2:] or list(SCENARIOS)
     out.mkdir(parents=True, exist_ok=True)
     app = QApplication(sys.argv)
     launcher = Launcher()
     launcher.resize(520, 360)
     launcher.show()
-    panel = HydrofracPanel()
-    panel.resize(1200, 720)
-    panel.show()
+    queue = [(name, SCENARIOS[name]) for name in names]
+    keep = []
 
-    def step1():
-        panel.run()
-        QTimer.singleShot(300, step2)
+    def run_next():
+        if not queue:
+            launcher.grab().save(str(out / "launcher.png"))
+            print("screenshots written to", out)
+            app.quit()
+            return
+        name, factory = queue.pop(0)
+        panel, steps = factory(out)
+        keep.append(panel)
 
-    def step2():
-        launcher.grab().save(str(out / "launcher.png"))
-        panel.grab().save(str(out / "hydrofrac_history.png"))
-        panel.plot_profile()
-        QTimer.singleShot(300, step3)
+        def run_steps(i=0):
+            if i < len(steps):
+                steps[i]()
+                QTimer.singleShot(300, lambda: run_steps(i + 1))
+            else:
+                QTimer.singleShot(200, run_next)
 
-    def step3():
-        panel.grab().save(str(out / "hydrofrac_profile.png"))
-        panel.plot_3d()
-        QTimer.singleShot(600, step4)
+        QTimer.singleShot(400, run_steps)
 
-    def step4():
-        panel.grab().save(str(out / "hydrofrac_3d.png"))
-        print("screenshots written to", out)
-        app.quit()
-
-    QTimer.singleShot(500, step1)
+    QTimer.singleShot(400, run_next)
     return app.exec()
 
 

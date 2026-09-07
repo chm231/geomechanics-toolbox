@@ -31,7 +31,7 @@ MATLAB Runtime 없이 실행되는 Python(PySide6 + matplotlib) 버전으로 옮
 | 모듈 | 계산 코드 | GUI | MATLAB 대조 테스트 |
 |---|---|---|---|
 | Hydrofracturing Estimation | `geomech/core/hydrofrac.py` | `geomech/gui/hydrofrac_panel.py` | `tests/test_hydrofrac.py` (5 케이스, 상대오차 1e-8) |
-| Temperature Prediction | 예정 | | |
+| Temperature Prediction | `geomech/core/thermal.py`, `thermal_project.py` | `geomech/gui/thermal_panel.py` | `tests/test_thermal.py` (5 케이스; Bodvarsson 1e-8, Talbot 역변환 모델 2e-3 °C) |
 | 3D Mohr Circle / Strength Anisotropy | 예정 | | |
 | Borehole Stability | 예정 | | |
 | Stereographic Projection | 예정 | | |
@@ -48,7 +48,17 @@ MATLAB 기준값 재생성(MATLAB 설치 필요):
 
 ```bash
 matlab -batch "run('tools/gen_reference_hydrofrac.m')"
+matlab -batch "run('tools/gen_reference_thermal.m')"
 ```
+
+이식 중 확인된 MATLAB 원본의 문제와 Python에서의 처리:
+
+- Radial 수압파쇄 모델은 누출계수 C = 0 이면 원본도 계산이 깨집니다. Python은 명시적으로 오류를 냅니다.
+- Temperature Prediction의 단일 균열(N = 1) 암반 온도장은 원본이 Gringarten에서 전부 NaN,
+  Radial에서 −5×10⁶ °C 같은 값을 냅니다(무한 간격을 Talbot 역변환에 넣기 때문). Python은
+  해당 극한의 닫힌 해(erfc)를 사용합니다.
+- Talbot 역변환(M = 64)은 항 크기가 e²⁵ 수준이라 라이브러리마다 1e‑6 정도 차이가 납니다.
+  표시 정밀도(0.01 °C)보다 훨씬 작습니다.
 
 ## 폴더 구조
 
