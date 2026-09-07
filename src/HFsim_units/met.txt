@@ -1,0 +1,16 @@
+Description:
+metric 
+
+Parameter	Input unit	Output unit
+Fluid volume	6	6
+Fracture length	5	5
+Fracture aperture	1	1
+Fracture height	5	5
+Injection rate	8	8
+Leakoff coefficient	1	1
+Pressure	8	8
+Spurt loss	1	1
+Time	3	3
+Young's modulus	5	5
+Borehole radius	5	5
+Fluid viscosity	3	3

@@ -1,0 +1,29 @@
+HF simulation data file
+Last updated date: 2015-08-03, 13:19:01
+
+Unit settings
+Parameter	Input unit	IU id	Output unit	OU id
+
+Base data
+Parameter	Value	Unit
+Young's modulus		(Units...)
+Poisson's ratio		fraction
+Injection rate into the borehole		(Units...)
+fluid viscosity		(Units...)
+Leakoff coefficient		(Units...)
+Spurt loss		(Units...)
+Borehole radius		(Units...)
+
+Fracture type
+Radial fracture, t_min:		(Units...)
+
+Injection parameter
+By total injection time:		(Units...)
+
+Calculation results
+Injection time	Injected volume	Fracture length	Maximum fracture aperture	Average fracture aperture	Net fluid pressure
+(Units...)	(Units...)	(Units...)	(Units...)	(Units...)	(Units...)
+
+2D aperture profile & 3D fracture shape
+At time t =		(Units...)
+Aperture scale factor in 3D:	

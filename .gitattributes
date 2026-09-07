@@ -1,0 +1,11 @@
+* text=auto
+*.m text
+*.prj text
+*.txt text
+*.md text
+*.mlapp binary
+*.fig binary
+*.mat binary
+*.pdf binary
+*.jpg binary
+*.png binary

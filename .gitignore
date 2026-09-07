@@ -1,0 +1,32 @@
+# --- 빌드 산출물 / 배포 파일 (용량이 크고 재생성 가능) ---
+*.exe
+*.zip
+*.mlappinstall
+MyAppInstaller*
+for_redistribution/
+for_redistribution_files_only/
+for_testing/
+PackagingLog.html
+*_report.html
+
+# --- MATLAB 임시 파일 ---
+*.asv
+*.autosave
+*.m~
+slprj/
+codegen/
+*.mex*
+
+# --- 대용량 DFN 데이터 (DFN 저장소에서 별도 관리) ---
+Laxemar_DFN_*.txt
+DFN_points_xyz.txt
+*.h5
+*.npy
+
+# --- 로컬 환경 ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+~$*

@@ -1,0 +1,179 @@
+<deployment-project plugin="plugin.ezdeploy" plugin-version="1.0">
+  <configuration file="C:\Users\chm00\OneDrive\바탕 화면\Geomechanics_Toolbox.prj" location="C:\Users\chm00\OneDrive\바탕 화면" name="Geomechanics_Toolbox" target="target.ezdeploy.standalone" target-name="Application Compiler">
+    <param.appname>Geomechanics_Toolbox</param.appname>
+    <param.icon />
+    <param.icons />
+    <param.version>1.1</param.version>
+    <param.authnamewatermark />
+    <param.email />
+    <param.company />
+    <param.summary>revised in 24.08 by 이창무, 성하경</param.summary>
+    <param.description />
+    <param.screenshot />
+    <param.guid />
+    <param.installpath.string>\Geomechanics_Toolbox\</param.installpath.string>
+    <param.installpath.combo>option.installpath.programfiles</param.installpath.combo>
+    <param.logo />
+    <param.install.notes />
+    <param.target.install.notes />
+    <param.intermediate>${PROJECT_ROOT}\Geomechanics_Toolbox\for_testing</param.intermediate>
+    <param.files.only>${PROJECT_ROOT}\Geomechanics_Toolbox\for_redistribution_files_only</param.files.only>
+    <param.output>${PROJECT_ROOT}\Geomechanics_Toolbox\for_redistribution</param.output>
+    <param.logdir>${PROJECT_ROOT}\Geomechanics_Toolbox</param.logdir>
+    <param.enable.clean.build>false</param.enable.clean.build>
+    <param.user.defined.mcr.options />
+    <param.target.type>subtarget.standalone</param.target.type>
+    <param.support.packages />
+    <param.web.mcr>true</param.web.mcr>
+    <param.package.mcr>false</param.package.mcr>
+    <param.no.mcr>false</param.no.mcr>
+    <param.web.mcr.name>MyAppInstaller_web</param.web.mcr.name>
+    <param.package.mcr.name>MyAppInstaller_mcr</param.package.mcr.name>
+    <param.no.mcr.name>MyAppInstaller_app</param.no.mcr.name>
+    <param.windows.command.prompt>true</param.windows.command.prompt>
+    <param.create.log>false</param.create.log>
+    <param.log.file />
+    <param.native.matlab>false</param.native.matlab>
+    <param.checkbox>false</param.checkbox>
+    <param.example />
+    <param.help.text>Syntax 
+	  -? 
+	 
+ Input Arguments 
+	 -?  print help on how to use the application 
+	 input arguments</param.help.text>
+    <unset>
+      <param.icon />
+      <param.icons />
+      <param.authnamewatermark />
+      <param.email />
+      <param.company />
+      <param.description />
+      <param.screenshot />
+      <param.guid />
+      <param.installpath.string />
+      <param.installpath.combo />
+      <param.logo />
+      <param.install.notes />
+      <param.target.install.notes />
+      <param.intermediate />
+      <param.files.only />
+      <param.output />
+      <param.logdir />
+      <param.enable.clean.build />
+      <param.user.defined.mcr.options />
+      <param.target.type />
+      <param.support.packages />
+      <param.web.mcr />
+      <param.package.mcr />
+      <param.no.mcr />
+      <param.web.mcr.name />
+      <param.package.mcr.name />
+      <param.no.mcr.name />
+      <param.windows.command.prompt />
+      <param.create.log />
+      <param.log.file />
+      <param.native.matlab />
+      <param.checkbox />
+      <param.example />
+    </unset>
+    <fileset.main>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\Simulator_int.mlapp</file>
+    </fileset.main>
+    <fileset.resources />
+    <fileset.package />
+    <fileset.depfun>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\3.jpg</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\5.jpg</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\7.jpg</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\8.jpg</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\9.jpg</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\aniso.jpg</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\anisotropy.mlapp</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\b.jpg</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\bdv.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\BSA210831_v2.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\calOBB.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\calUCS.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\convert_TPCoor.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\convert_VecTP.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\descriptions.fig</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\descriptions.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\dist3.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\distfcm_new.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\dPcdz_cal.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\fcm_new.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\grgtal.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\HFsim.fig</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\HFsim.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\HSsim.fig</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\HSsim.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\initfcm.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\KGD3D.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\KGD_C.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\Mohr_Circle.mlapp</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\Mohr_Sub.mlapp</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\optJD.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\Pc_cal2.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\Pcm_cal.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\Pco_cal.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\PKN3D.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\PKN_C.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\polygonGroup.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\radial3D.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\radial_C.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\radtal.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\radTWD.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\resultPlot.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\rockTemp_bdv.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\rockTemp_grg.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\rockTemp_rad.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\roseDiagram.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\schmidtNet.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\stepfcm_new.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\stereonetGroup.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\stereoProjection.fig</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\stereoProjection.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\strSort.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\talbot_inversion.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\TherCal.fig</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\TherCal.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\threeddfngui.fig</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\threeddfngui.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\TWD.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\Units.fig</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\Units.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\untitled.fig</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\untitled.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\vars.mat</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\wulffCircle.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\wulffNet.m</file>
+      <file>C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\스크린샷 2024-08-26 164945.jpg</file>
+    </fileset.depfun>
+    <build-deliverables>
+      <file location="${PROJECT_ROOT}\Geomechanics_Toolbox\for_testing" name="readme.txt" optional="true">C:\Users\chm00\OneDrive\바탕 화면\Geomechanics_Toolbox\for_testing\readme.txt</file>
+      <file location="${PROJECT_ROOT}\Geomechanics_Toolbox\for_testing" name="Geomechanics_Toolbox.exe" optional="false">C:\Users\chm00\OneDrive\바탕 화면\Geomechanics_Toolbox\for_testing\Geomechanics_Toolbox.exe</file>
+      <file location="${PROJECT_ROOT}\Geomechanics_Toolbox\for_testing" name="splash.png" optional="false">C:\Users\chm00\OneDrive\바탕 화면\Geomechanics_Toolbox\for_testing\splash.png</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>C:\Program Files\MATLAB\R2024a</root>
+      <toolboxes />
+    </matlab>
+    <platform>
+      <unix>false</unix>
+      <mac>false</mac>
+      <windows>true</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</vista>
+      <linux>false</linux>
+      <solaris>false</solaris>
+      <osver>10.0</osver>
+      <os32>false</os32>
+      <os64>true</os64>
+      <arch>win64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>

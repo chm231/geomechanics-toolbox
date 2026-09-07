@@ -1,0 +1,130 @@
+<deployment-project plugin="plugin.apptool" plugin-version="1.0">
+  <configuration build-checksum="3186048494" file="C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2\Geomechanics Toolbox.prj" location="C:\Users\chm00\OneDrive\문서\MATLAB\matlab files&amp;example data_1.2" name="Geomechanics Toolbox" target="target.mlapps" target-name="앱 패키징">
+    <param.appname>Geomechanics Toolbox</param.appname>
+    <param.authnamewatermark />
+    <param.email />
+    <param.company />
+    <param.icon />
+    <param.icons />
+    <param.summary />
+    <param.description />
+    <param.screenshot />
+    <param.version>1.2</param.version>
+    <param.products.name />
+    <param.products.id />
+    <param.products.version />
+    <param.platforms />
+    <param.output>C:\Users\chm00\OneDrive\바탕 화면</param.output>
+    <param.guid>08e34c4b-bc3d-498e-a1da-c4cf124f8e7e</param.guid>
+    <unset>
+      <param.authnamewatermark />
+      <param.email />
+      <param.company />
+      <param.icon />
+      <param.icons />
+      <param.summary />
+      <param.description />
+      <param.screenshot />
+      <param.products.name />
+      <param.products.id />
+      <param.products.version />
+      <param.platforms />
+    </unset>
+    <fileset.main>
+      <file>${PROJECT_ROOT}\Simulator_int.mlapp</file>
+    </fileset.main>
+    <fileset.depfun>
+      <file>${PROJECT_ROOT}\3.jpg</file>
+      <file>${PROJECT_ROOT}\5.jpg</file>
+      <file>${PROJECT_ROOT}\7.jpg</file>
+      <file>${PROJECT_ROOT}\8.jpg</file>
+      <file>${PROJECT_ROOT}\9.jpg</file>
+      <file>${PROJECT_ROOT}\aniso.jpg</file>
+      <file>${PROJECT_ROOT}\anisotropy.mlapp</file>
+      <file>${PROJECT_ROOT}\b.jpg</file>
+      <file>${PROJECT_ROOT}\bdv.m</file>
+      <file>${PROJECT_ROOT}\BSA210831_v2.m</file>
+      <file>${PROJECT_ROOT}\calOBB.m</file>
+      <file>${PROJECT_ROOT}\calUCS.m</file>
+      <file>${PROJECT_ROOT}\convert_TPCoor.m</file>
+      <file>${PROJECT_ROOT}\convert_VecTP.m</file>
+      <file>${PROJECT_ROOT}\descriptions.fig</file>
+      <file>${PROJECT_ROOT}\descriptions.m</file>
+      <file>${PROJECT_ROOT}\dist3.m</file>
+      <file>${PROJECT_ROOT}\distfcm_new.m</file>
+      <file>${PROJECT_ROOT}\dPcdz_cal.m</file>
+      <file>${PROJECT_ROOT}\fcm_new.m</file>
+      <file>${PROJECT_ROOT}\grgtal.m</file>
+      <file>${PROJECT_ROOT}\HFsim.fig</file>
+      <file>${PROJECT_ROOT}\HFsim.m</file>
+      <file>${PROJECT_ROOT}\HSsim.fig</file>
+      <file>${PROJECT_ROOT}\HSsim.m</file>
+      <file>${PROJECT_ROOT}\initfcm.m</file>
+      <file>${PROJECT_ROOT}\KGD3D.m</file>
+      <file>${PROJECT_ROOT}\KGD_C.m</file>
+      <file>${PROJECT_ROOT}\Mohr_Circle.mlapp</file>
+      <file>${PROJECT_ROOT}\Mohr_Sub.mlapp</file>
+      <file>${PROJECT_ROOT}\optJD.m</file>
+      <file>${PROJECT_ROOT}\Pc_cal2.m</file>
+      <file>${PROJECT_ROOT}\Pcm_cal.m</file>
+      <file>${PROJECT_ROOT}\Pco_cal.m</file>
+      <file>${PROJECT_ROOT}\PKN3D.m</file>
+      <file>${PROJECT_ROOT}\PKN_C.m</file>
+      <file>${PROJECT_ROOT}\polygonGroup.m</file>
+      <file>${PROJECT_ROOT}\radial3D.m</file>
+      <file>${PROJECT_ROOT}\radial_C.m</file>
+      <file>${PROJECT_ROOT}\radtal.m</file>
+      <file>${PROJECT_ROOT}\radTWD.m</file>
+      <file>${PROJECT_ROOT}\resultPlot.m</file>
+      <file>${PROJECT_ROOT}\rockTemp_bdv.m</file>
+      <file>${PROJECT_ROOT}\rockTemp_grg.m</file>
+      <file>${PROJECT_ROOT}\rockTemp_rad.m</file>
+      <file>${PROJECT_ROOT}\roseDiagram.m</file>
+      <file>${PROJECT_ROOT}\schmidtNet.m</file>
+      <file>${PROJECT_ROOT}\stepfcm_new.m</file>
+      <file>${PROJECT_ROOT}\stereonetGroup.m</file>
+      <file>${PROJECT_ROOT}\stereoProjection.fig</file>
+      <file>${PROJECT_ROOT}\stereoProjection.m</file>
+      <file>${PROJECT_ROOT}\strSort.m</file>
+      <file>${PROJECT_ROOT}\talbot_inversion.m</file>
+      <file>${PROJECT_ROOT}\TherCal.fig</file>
+      <file>${PROJECT_ROOT}\TherCal.m</file>
+      <file>${PROJECT_ROOT}\threeddfngui.fig</file>
+      <file>${PROJECT_ROOT}\threeddfngui.m</file>
+      <file>${PROJECT_ROOT}\TWD.m</file>
+      <file>${PROJECT_ROOT}\Units.fig</file>
+      <file>${PROJECT_ROOT}\Units.m</file>
+      <file>${PROJECT_ROOT}\untitled.fig</file>
+      <file>${PROJECT_ROOT}\untitled.m</file>
+      <file>${PROJECT_ROOT}\vars.mat</file>
+      <file>${PROJECT_ROOT}\wulffCircle.m</file>
+      <file>${PROJECT_ROOT}\wulffNet.m</file>
+      <file>${PROJECT_ROOT}\스크린샷 2024-08-26 164945.jpg</file>
+    </fileset.depfun>
+    <fileset.resources />
+    <fileset.package />
+    <build-deliverables>
+      <file location="C:\Users\chm00\OneDrive" name="바탕 화면" optional="false">C:\Users\chm00\OneDrive\바탕 화면</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>C:\Program Files\MATLAB\R2024a</root>
+      <toolboxes />
+    </matlab>
+    <platform>
+      <unix>false</unix>
+      <mac>false</mac>
+      <windows>true</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</vista>
+      <linux>false</linux>
+      <solaris>false</solaris>
+      <osver>10.0</osver>
+      <os32>false</os32>
+      <os64>true</os64>
+      <arch>win64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>

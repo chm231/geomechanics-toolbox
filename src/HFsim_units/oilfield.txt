@@ -1,0 +1,16 @@
+Description:
+oil field units? 
+
+Parameter	Input unit	Output unit
+Fluid volume	1	1
+Fracture length	1	1
+Fracture aperture	1	1
+Fracture height	1	1
+Injection rate	1	1
+Leakoff coefficient	1	1
+Pressure	1	1
+Spurt loss	1	1
+Time	1	1
+Young's modulus	1	1
+Borehole radius	1	1
+Fluid viscosity	1	1
