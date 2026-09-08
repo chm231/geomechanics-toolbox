@@ -63,6 +63,15 @@ python tools/make_reference_dfn_m.py        && matlab -batch "run('tools/gen_ref
 3D DFN은 MATLAB `rng(seed,'twister')`와 numpy `RandomState(seed)`의 균일난수 스트림이 동일하다는 점을 이용해
 같은 시드의 실현(realisation) 전체를 비교합니다. Python에서 seed를 주면 MATLAB과 같은 DFN이 나옵니다.
 
+### 논문용(Scientific) 그림 스타일
+
+런처 아래의 **Scientific plot style** 체크박스를 켜면 모든 그림이 논문 관례로 그려집니다. 세리프 글꼴(Times New
+Roman → STIX → DejaVu Serif 순서로 있는 것), STIX 수식 글꼴, 네 변 안쪽 눈금, 검은 1.2 pt 테두리, 10⁻²~10³을 벗어나면
+×10ⁿ 수학식 지수 표기, 검은 테두리 범례. 설정은 저장되어 다음 실행에도 유지되고, `GEOMECH_SCIENTIFIC=1` 환경변수로도
+켤 수 있습니다. 그림 창마다 있는 **Publication figure…** 버튼은 현재 그림을 논문용 글꼴 크기(제목 24, 축 22, 눈금 20,
+범례 18 pt; 여러 개의 서브플롯이면 축소)로 600 dpi PNG/TIFF 또는 PDF/SVG로 저장합니다. 구현은
+`geomech/gui/plotstyle.py`이며 패널이 그린 뒤에 스타일을 입히므로 3D·극좌표 축은 글꼴만 바뀌고 컬러바는 눈금을 유지합니다.
+
 ### 3D DFN Generation의 두 가지 모드
 
 | | 툴박스 모드 | 암반(rock-mass) 모드 |
