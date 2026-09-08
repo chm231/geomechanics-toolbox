@@ -37,6 +37,13 @@ class MplWidget(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.addLayout(top)
         lay.addWidget(self.canvas)
+        self.canvas.mpl_connect("resize_event", self._on_resize)
+
+    def _on_resize(self, _event):
+        """The adaptive font sizes depend on the canvas size, which is stale while a tab is
+        hidden: restyle when the canvas gets its real size (the redraw follows anyway)."""
+        if plotstyle.enabled() and self.figure.axes:
+            plotstyle.style_figure(self.figure)
 
     def clear(self):
         self.figure.clear()
@@ -44,6 +51,7 @@ class MplWidget(QWidget):
         return self.ax
 
     def draw(self):
+        plotstyle.layout_for_3d(self.figure)      # 3-D axes: fixed margins so the title is not pushed off the figure
         if plotstyle.enabled():
             plotstyle.style_figure(self.figure)
         self.canvas.draw_idle()

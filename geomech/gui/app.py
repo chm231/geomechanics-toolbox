@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QGridLayout, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget,
+    QApplication, QCheckBox, QGridLayout, QHBoxLayout, QLabel, QMainWindow, QPushButton, QSpinBox, QVBoxLayout, QWidget,
 )
 
 from geomech import __version__
@@ -65,10 +65,26 @@ class Launcher(QMainWindow):
         self.cb_style.setChecked(plotstyle.enabled())
         self.cb_style.toggled.connect(self.set_plot_style)
         v.addWidget(self.cb_style)
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Font scale"))
+        self.sp_font = QSpinBox(); self.sp_font.setRange(50, 200); self.sp_font.setSingleStep(10); self.sp_font.setSuffix(" %")
+        self.sp_font.setValue(int(round(plotstyle.font_scale() * 100)))
+        self.sp_font.setToolTip("Multiplies the (already size-adaptive) fonts of the scientific style and of publication exports.")
+        self.sp_font.valueChanged.connect(self.set_font_scale)
+        row.addWidget(self.sp_font); row.addStretch(1)
+        v.addLayout(row)
 
     def set_plot_style(self, flag: bool):
         plotstyle.set_enabled(flag)
         settings().setValue("scientific_style", bool(flag))
+        self._restyle_open_windows()
+
+    def set_font_scale(self, percent: int):
+        plotstyle.set_font_scale(percent / 100.0)
+        settings().setValue("plot_font_scale", int(percent))
+        self._restyle_open_windows()
+
+    def _restyle_open_windows(self):
         for win in self._windows:                       # restyle what is already on screen
             for mw in win.findChildren(MplWidget):
                 mw.draw()
@@ -89,6 +105,7 @@ def apply_saved_plot_style() -> None:
     """Plot style from the saved preference, or GEOMECH_SCIENTIFIC=1 for scripts and screenshots."""
     plotstyle.set_enabled(os.environ.get("GEOMECH_SCIENTIFIC") == "1"
                           or settings().value("scientific_style", False, type=bool))
+    plotstyle.set_font_scale(settings().value("plot_font_scale", 100, type=int) / 100.0)
 
 
 def main(argv: list[str] | None = None) -> int:
