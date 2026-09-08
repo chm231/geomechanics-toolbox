@@ -74,7 +74,8 @@ class DFNRockMassPanel(QWidget):
         self.btn_count = QPushButton("Count only"); self.btn_count.clicked.connect(self.count_only)
         row.addWidget(self.btn_gen); row.addWidget(self.btn_count)
         left.addLayout(row)
-        self.lbl_info = QLabel(""); self.lbl_info.setWordWrap(True); left.addWidget(self.lbl_info)
+        self.lbl_info = QLabel(""); self.lbl_info.setWordWrap(True); self.lbl_info.setMinimumHeight(120)
+        self.lbl_info.setAlignment(Qt.AlignmentFlag.AlignTop); left.addWidget(self.lbl_info)
 
         g = QGroupBox("Crop box, plots and export")
         grid = QGridLayout(g)
