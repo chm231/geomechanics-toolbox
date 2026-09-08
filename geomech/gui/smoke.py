@@ -213,9 +213,9 @@ SCENARIOS = {"hydrofrac": hydrofrac_steps, "thermal": thermal_steps,
 
 def run(out: Path | None = None, names: list[str] | None = None, log: Path | None = None) -> int:
     """Run the scenarios inside a Qt event loop. Returns 0 when all of them completed."""
-    from geomech.gui.app import Launcher, apply_saved_plot_style
+    from geomech.gui.app import Launcher, apply_plot_settings
     worker.SYNC = True                      # background jobs run inline so each step sees its result
-    apply_saved_plot_style()
+    apply_plot_settings()
     if out is not None:
         out.mkdir(parents=True, exist_ok=True)
     app = QApplication.instance() or QApplication(sys.argv)
