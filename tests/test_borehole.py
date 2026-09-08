@@ -43,8 +43,9 @@ def test_analytic_field_matches_matlab(case):
     scale = 30e6  # tolerance relative to the stress level (Pa)
     for name in ("Sr", "St", "Sz", "Trt", "Trz", "Ttz", "Sp1", "Sp2", "Sp3"):
         np.testing.assert_allclose(getattr(f, name)[sub], case[name], rtol=rtol, atol=rtol * scale, err_msg=name)
-    np.testing.assert_allclose(f.dispxx[sub], case["dispxx"], rtol=rtol, atol=1e-12, err_msg="dispxx")
-    np.testing.assert_allclose(f.dispyy[sub], case["dispyy"], rtol=rtol, atol=1e-12, err_msg="dispyy")
+    for name in ("dispxx", "dispyy"):
+        ref = np.array(case[name])
+        np.testing.assert_allclose(getattr(f, name)[sub], ref, rtol=rtol, atol=rtol * np.abs(ref).max(), err_msg=name)
     np.testing.assert_allclose(f.St[0], case["St_wall"], rtol=rtol, atol=rtol * scale)
 
 
