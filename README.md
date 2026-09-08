@@ -37,7 +37,8 @@ MATLAB Runtime 없이 실행되는 Python(PySide6 + matplotlib) 버전입니다.
 | Borehole Stability | `geomech/core/borehole.py` | `geomech/gui/borehole_panel.py` | `tests/test_borehole.py` (해석해 5, FEM 1, 전방위 3 케이스) |
 | Hydroshearing Estimation | `geomech/core/hydroshear.py` | `geomech/gui/hydroshear_panel.py` | `tests/test_hydroshear.py` (4 케이스; Pcm/Pco/Pc/최적방향 1e‑10, 응력다각형·스테레오넷 1e‑10) |
 | Stereographic Projection | `geomech/core/stereonet.py` | `geomech/gui/stereonet_panel.py` | `tests/test_stereonet.py` (투영·밀도등고선·평균방향·FCM·로즈 1e‑9) |
-| 3D DFN Generation | `geomech/core/dfn.py` | `geomech/gui/dfn_panel.py` | `tests/test_dfn.py` (같은 시드로 MATLAB 실현과 1e‑12 일치) |
+| 3D DFN Generation — 툴박스 모드 | `geomech/core/dfn.py` | `geomech/gui/dfn_panel.py` | `tests/test_dfn.py` (같은 시드로 MATLAB 실현과 1e‑12 일치) |
+| 3D DFN Generation — 암반 모드 | `geomech/core/dfn_rockmass.py` | `geomech/gui/dfn_rockmass_panel.py` | `tests/test_dfn_rockmass.py` (DFN 프로젝트 원본 스크립트와 같은 시드로 완전 일치) |
 | Units | `geomech/core/units.py` | `geomech/gui/units_dialog.py` (Hydrofracturing 창의 Units… 버튼) | `tests/test_units.py` (Units.m 환산계수 전부 대조) |
 
 ```bash
@@ -61,6 +62,19 @@ python tools/make_reference_dfn_m.py        && matlab -batch "run('tools/gen_ref
 
 3D DFN은 MATLAB `rng(seed,'twister')`와 numpy `RandomState(seed)`의 균일난수 스트림이 동일하다는 점을 이용해
 같은 시드의 실현(realisation) 전체를 비교합니다. Python에서 seed를 주면 MATLAB과 같은 DFN이 나옵니다.
+
+### 3D DFN Generation의 두 가지 모드
+
+| | 툴박스 모드 | 암반(rock-mass) 모드 |
+|---|---|---|
+| 출처 | `threeddfngui.m` (툴박스 원본) | DFN 프로젝트 `dfn generator v1/python/generate_dfn.py` (`tests/oracle/`에 원본 사본) |
+| 절리군 | 1개 | 여러 개(표에서 편집, Forsmark/Laxemar 프리셋, JSON config 불러오기) |
+| 개수 | 직접 입력 또는 멱법칙 밀도 | 절리군별 P32 × 상자 부피 / 평균 원판 면적 (r0 → rmin 재척도) |
+| 크기 | 지름: 음지수 / 멱법칙 | 반지름: 멱법칙(kr, 생존지수) / 지수 / 로그정규 / 균일, rmin~rmax 절단 |
+| 방향 | dip/dip direction + Fisher K | 극점 trend/plunge + Fisher κ |
+| 좌표계 | x, y, z(아래 방향 depth) | x = 동, y = 북, z = 위 |
+| 중심 | 상자 안 균일 | 상자 안 균일 + 원판 위 면적균일 점으로 이동(원판 표면이 공간에 균일) |
+| 출력 | 검증 히스토그램, 샘플링 창 트레이스, 시추공 교차, 텍스트 저장 | 크롭박스 클리핑 3D, 터널 폴리곤 교차, X/Y/Z=0 트레이스 맵(P21), 크기분포·스테레오넷 검증, HDF5(DFN 프로젝트 형식)/CSV |
 
 이식 중 확인된 MATLAB 원본의 문제와 Python에서의 처리:
 

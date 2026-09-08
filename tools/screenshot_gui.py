@@ -161,22 +161,33 @@ def stereonet_steps(out: Path):
 
 def dfn_steps(out: Path):
     from geomech.gui.dfn_panel import DFNPanel
-    panel = DFNPanel()
-    panel.resize(1300, 820)
-    panel.show()
+    win = DFNPanel()
+    win.resize(1400, 860)
+    win.show()
+    panel = win.toolbox
 
     def s1():
+        win.setCurrentWidget(panel)
         panel.generate()
-        panel.grab().save(str(out / "dfn_3d.png"))
+        win.grab().save(str(out / "dfn_3d.png"))
         panel.verification()
-        panel.grab().save(str(out / "dfn_verification.png"))
+        win.grab().save(str(out / "dfn_verification.png"))
         panel.window_plot()
-        panel.grab().save(str(out / "dfn_window.png"))
+        win.grab().save(str(out / "dfn_window.png"))
         panel.drill_classify()
-        panel.grab().save(str(out / "dfn_drill.png"))
-        panel.close()
+        win.grab().save(str(out / "dfn_drill.png"))
+        rmp = win.rockmass
+        win.setCurrentWidget(rmp)
+        rmp.in_size.setText("40"); rmp.in_crop.setText("15")
+        rmp.generate()
+        win.grab().save(str(out / "dfn_rockmass_3d.png"))
+        rmp.plot_traces()
+        win.grab().save(str(out / "dfn_rockmass_traces.png"))
+        rmp.plot_validation()
+        win.grab().save(str(out / "dfn_rockmass_validation.png"))
+        win.close()
 
-    return panel, [s1]
+    return win, [s1]
 
 
 SCENARIOS = {"hydrofrac": hydrofrac_steps, "thermal": thermal_steps,

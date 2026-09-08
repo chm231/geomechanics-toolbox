@@ -20,10 +20,24 @@ def _edit(text: str, width: int = 70) -> QLineEdit:
     return e
 
 
-class DFNPanel(QWidget):
+class DFNPanel(QTabWidget):
+    """Two generators behind one window: the toolbox generator (threeddfngui.m) and the
+    rock-mass generator of the DFN project (multi-set, P32-based)."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("3D Discrete Fracture Network")
+        from geomech.gui.dfn_rockmass_panel import DFNRockMassPanel
+        self.toolbox = DFNToolboxPanel()
+        self.rockmass = DFNRockMassPanel()
+        self.addTab(self.toolbox, "Toolbox mode (single set, MATLAB)")
+        self.addTab(self.rockmass, "Rock-mass mode (multi-set, P32)")
+        self.setDocumentMode(True)
+
+
+class DFNToolboxPanel(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.dfn: dfn.DFN | None = None
         self.drill: dfn.DrillResult | None = None
         self._build()
