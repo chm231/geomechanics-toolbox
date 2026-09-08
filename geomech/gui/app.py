@@ -11,18 +11,21 @@ from PySide6.QtWidgets import (
 from geomech import __version__
 from geomech.gui.anisotropy_panel import AnisotropyPanel
 from geomech.gui.borehole_panel import BoreholePanel
+from geomech.gui.dfn_panel import DFNPanel
 from geomech.gui.hydrofrac_panel import HydrofracPanel
+from geomech.gui.hydroshear_panel import HydroshearPanel
 from geomech.gui.mohr_panel import MohrPanel
+from geomech.gui.stereonet_panel import StereonetPanel
 from geomech.gui.thermal_panel import ThermalPanel
 
 # (label, factory or None while not yet ported) - order follows Simulator_int.mlapp
 MODULES = [
     ("Borehole Stability", BoreholePanel),
     ("Hydrofracturing Estimation", HydrofracPanel),
-    ("Hydroshearing Estimation", None),
+    ("Hydroshearing Estimation", HydroshearPanel),
     ("Temperature Prediction", ThermalPanel),
-    ("Stereographic Projection", None),
-    ("3D DFN Generation", None),
+    ("Stereographic Projection", StereonetPanel),
+    ("3D DFN Generation", DFNPanel),
     ("3D Mohr Circle", MohrPanel),
     ("Strength Anisotropy", AnisotropyPanel),
 ]

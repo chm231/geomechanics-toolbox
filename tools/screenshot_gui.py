@@ -111,8 +111,77 @@ def borehole_steps(out: Path):
     return panel, [s1]
 
 
+def hydroshear_steps(out: Path):
+    from geomech.gui.hydroshear_panel import HydroshearPanel
+    panel = HydroshearPanel()
+    panel.resize(1300, 820)
+    panel.show()
+
+    def s1():
+        panel.add_joint()
+        panel.in_dip.setText("75.29"); panel.in_dd.setText("151.94"); panel.add_joint()
+        panel.quick_run()
+        panel.advanced_run()
+        panel.tabs.setCurrentWidget(panel.plots["pcm"]); panel.grab().save(str(out / "hydroshear_pcm.png"))
+        panel.tabs.setCurrentWidget(panel.plots["pc"]); panel.grab().save(str(out / "hydroshear_pc.png"))
+        panel.tabs.setCurrentWidget(panel.plots["pco"]); panel.grab().save(str(out / "hydroshear_pco.png"))
+        panel.tabs.setCurrentWidget(panel.plots["grad"]); panel.grab().save(str(out / "hydroshear_grad.png"))
+        panel.close()
+
+    return panel, [s1]
+
+
+def stereonet_steps(out: Path):
+    import numpy as np
+    from geomech.core import stereonet as st
+    from geomech.gui.stereonet_panel import StereonetPanel
+    panel = StereonetPanel()
+    panel.resize(1300, 820)
+    panel.show()
+    src = Path(__file__).resolve().parents[1] / "src" / "stereo_exmapledata" / "exampleData.txt"
+
+    def s1():
+        panel.set_data(st.load_dip_file(src))
+        panel.pole_plot()
+        panel.cb_net.setChecked(True)
+        panel._circles.append((np.deg2rad(60), np.deg2rad(120))); panel._refresh_list(); panel.redraw()
+        panel.grab().save(str(out / "stereonet_poles.png"))
+        panel.cb_net.setChecked(False)
+        panel.mean_direction()
+        panel.cluster()
+        panel.grab().save(str(out / "stereonet_sets.png"))
+        panel.cb_contour.setChecked(True)
+        panel.grab().save(str(out / "stereonet_contour.png"))
+        panel.rose()
+        panel.grab().save(str(out / "stereonet_rose.png"))
+        panel.close()
+
+    return panel, [s1]
+
+
+def dfn_steps(out: Path):
+    from geomech.gui.dfn_panel import DFNPanel
+    panel = DFNPanel()
+    panel.resize(1300, 820)
+    panel.show()
+
+    def s1():
+        panel.generate()
+        panel.grab().save(str(out / "dfn_3d.png"))
+        panel.verification()
+        panel.grab().save(str(out / "dfn_verification.png"))
+        panel.window_plot()
+        panel.grab().save(str(out / "dfn_window.png"))
+        panel.drill_classify()
+        panel.grab().save(str(out / "dfn_drill.png"))
+        panel.close()
+
+    return panel, [s1]
+
+
 SCENARIOS = {"hydrofrac": hydrofrac_steps, "thermal": thermal_steps,
-             "mohr": mohr_steps, "anisotropy": anisotropy_steps, "borehole": borehole_steps}
+             "mohr": mohr_steps, "anisotropy": anisotropy_steps, "borehole": borehole_steps,
+             "hydroshear": hydroshear_steps, "stereonet": stereonet_steps, "dfn": dfn_steps}
 
 
 def main():

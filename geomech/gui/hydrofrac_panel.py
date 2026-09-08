@@ -42,7 +42,7 @@ class _Input(QWidget):
 
 class HydrofracPanel(QWidget):
     RESULT_ROWS = [
-        ("Fracture length", "length"), ("Fracture height", "length"),
+        ("Fracture length", "length"), ("Fracture height", "height"),
         ("Maximum aperture", "aperture"), ("Average aperture", "aperture"),
         ("Net pressure", "pressure"), ("Total injection time", "time"),
         ("Total injected volume", "volume"),
@@ -53,7 +53,27 @@ class HydrofracPanel(QWidget):
         self.setWindowTitle("Hydraulic Fracturing Simulator")
         self.result: hf.FracResult | None = None
         self.params: hf.FracParams | None = None
+        self.unit_set = U.UnitSet()
         self._build()
+
+    def open_units(self):
+        """Units dialog (port of Units.m): applies input units to the entries and
+        output units to the results table and plots."""
+        from geomech.gui.units_dialog import UnitsDialog
+        dlg = UnitsDialog(self.unit_set, self)
+        if dlg.exec():
+            self.apply_units(dlg.unit_set)
+
+    def apply_units(self, s: U.UnitSet):
+        self.unit_set = s
+        for w, kind in ((self.in_E, "modulus"), (self.in_Q, "rate"), (self.in_mu, "viscosity"), (self.in_C, "leakoff"),
+                        (self.in_Sp, "spurt"), (self.in_Rw, "radius"), (self.in_hPKN, "height"), (self.in_hKGD, "height"),
+                        (self.in_T, "time"), (self.in_V, "volume")):
+            w.unit.setCurrentText(s.input[kind])
+        self._inj_changed(0, True)
+        if self.result is not None:
+            self._fill_table()
+            self.plot_history()
 
     # ------------------------------------------------------------------ UI
     def _build(self):
@@ -68,9 +88,9 @@ class HydrofracPanel(QWidget):
         self.in_nu = QLineEdit("0.25")
         self.in_Q = _Input("rate", U.DEFAULT["rate"], "3")
         self.in_mu = _Input("viscosity", U.DEFAULT["viscosity"], "100")
-        self.in_C = _Input("leakoff", U.DEFAULT["leakoff"], "0.0005")
-        self.in_Sp = _Input("aperture", "mm", "1")
-        self.in_Rw = _Input("length", "m", "0.1")
+        self.in_C = _Input("leakoff", U.DEFAULT["leakoff"], "0.05")
+        self.in_Sp = _Input("spurt", U.DEFAULT["spurt"], "0.1")
+        self.in_Rw = _Input("radius", U.DEFAULT["radius"], "4")
         f.addRow("Young's modulus", self.in_E)
         f.addRow("Poisson's ratio", self.in_nu)
         f.addRow("Injection rate (borehole)", self.in_Q)
@@ -87,8 +107,8 @@ class HydrofracPanel(QWidget):
         self.rb_kgd = QRadioButton("KGD fracture, height:")
         self.rb_rad = QRadioButton("Radial fracture")
         self.rb_pkn.setChecked(True)
-        self.in_hPKN = _Input("length", "m", "30")
-        self.in_hKGD = _Input("length", "m", "30")
+        self.in_hPKN = _Input("height", U.DEFAULT["height"], "30")
+        self.in_hKGD = _Input("height", U.DEFAULT["height"], "30")
         self.model_group = QButtonGroup(self)
         for i, rb in enumerate((self.rb_pkn, self.rb_kgd, self.rb_rad)):
             self.model_group.addButton(rb, i)
@@ -114,10 +134,14 @@ class HydrofracPanel(QWidget):
         self.inj_group.idToggled.connect(self._inj_changed)
         left.addWidget(g)
 
+        row = QHBoxLayout()
         self.btn_run = QPushButton("Run")
         self.btn_run.setStyleSheet("font-weight: bold; padding: 6px;")
         self.btn_run.clicked.connect(self.run)
-        left.addWidget(self.btn_run)
+        self.btn_units = QPushButton("Units…")
+        self.btn_units.clicked.connect(self.open_units)
+        row.addWidget(self.btn_run, 2); row.addWidget(self.btn_units, 1)
+        left.addLayout(row)
 
         # --- results ----------------------------------------------------
         g = QGroupBox("Results (at end of injection)")
@@ -242,9 +266,9 @@ class HydrofracPanel(QWidget):
         self.plot_history()
 
     def _display_units(self) -> dict[str, str]:
-        return {"length": self.in_hPKN.unit_name(), "aperture": self.in_Sp.unit_name(),
-                "pressure": U.DEFAULT["pressure"], "time": self.in_T.unit_name(),
-                "volume": self.in_V.unit_name()}
+        o = self.unit_set.output
+        return {"length": o["length"], "height": o["height"], "aperture": o["aperture"],
+                "pressure": o["pressure"], "time": o["time"], "volume": o["volume"]}
 
     def _fill_table(self):
         r, du = self.result, self._display_units()

@@ -55,7 +55,8 @@ def save_project(path: str | Path, model: str, p: ThermalParams,
         for i in range(field.T.shape[0]):
             for j in range(field.T.shape[1]):
                 lines.append(f"{field.along[i, j]:.2f}\t{field.normal[i, j]:.2f}\t{field.T[i, j]:.2f}\t")
-    Path(path).write_text("\r\n".join(lines) + "\r\n", encoding="utf-8")
+    with open(path, "w", encoding="utf-8", newline="\r\n") as fh:
+        fh.write("\n".join(lines) + "\n")
 
 
 def load_project(path: str | Path) -> tuple[str, ThermalParams, float | None]:

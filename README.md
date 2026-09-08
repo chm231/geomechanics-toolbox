@@ -22,9 +22,9 @@ MATLAB Compiler로 독립 실행 파일(`Geomechanics_Toolbox.exe`)로도 배포
 | Strength Anisotropy | `anisotropy.mlapp` | 강도 이방성 |
 | (공통) | `Units.m` / `Units.fig`, `descriptions.m` | 단위 변환, 도움말 화면 |
 
-## Python 포팅 (진행 중)
+## Python 포팅
 
-MATLAB Runtime 없이 실행되는 Python(PySide6 + matplotlib) 버전으로 옮기는 작업을 진행 중입니다.
+MATLAB Runtime 없이 실행되는 Python(PySide6 + matplotlib) 버전입니다. 8개 모듈 전부 이식됐습니다.
 계산 코드(`geomech/core/`)와 화면 코드(`geomech/gui/`)를 분리하고, 모듈마다 MATLAB 원본 출력값과
 대조하는 회귀 테스트(`tests/`)를 둡니다.
 
@@ -35,9 +35,10 @@ MATLAB Runtime 없이 실행되는 Python(PySide6 + matplotlib) 버전으로 옮
 | 3D Mohr Circle | `geomech/core/mohr.py` | `geomech/gui/mohr_panel.py` | `tests/test_mohr_aniso.py` (6 케이스, 1e-10; 방향코사인 해석해와도 일치) |
 | Strength Anisotropy | `geomech/core/anisotropy.py` | `geomech/gui/anisotropy_panel.py` | `tests/test_mohr_aniso.py` (4 케이스, 1e-10; Jaeger 식과 일치) |
 | Borehole Stability | `geomech/core/borehole.py` | `geomech/gui/borehole_panel.py` | `tests/test_borehole.py` (해석해 5, FEM 1, 전방위 3 케이스) |
-| Stereographic Projection | 예정 | | |
-| Units | `geomech/core/units.py` (일부) | | |
-| 3D DFN Generation | 예정 | | |
+| Hydroshearing Estimation | `geomech/core/hydroshear.py` | `geomech/gui/hydroshear_panel.py` | `tests/test_hydroshear.py` (4 케이스; Pcm/Pco/Pc/최적방향 1e‑10, 응력다각형·스테레오넷 1e‑10) |
+| Stereographic Projection | `geomech/core/stereonet.py` | `geomech/gui/stereonet_panel.py` | `tests/test_stereonet.py` (투영·밀도등고선·평균방향·FCM·로즈 1e‑9) |
+| 3D DFN Generation | `geomech/core/dfn.py` | `geomech/gui/dfn_panel.py` | `tests/test_dfn.py` (같은 시드로 MATLAB 실현과 1e‑12 일치) |
+| Units | `geomech/core/units.py` | `geomech/gui/units_dialog.py` (Hydrofracturing 창의 Units… 버튼) | `tests/test_units.py` (Units.m 환산계수 전부 대조) |
 
 ```bash
 pip install -e .[dev]          # numpy, scipy, matplotlib, PySide6, pytest
@@ -53,7 +54,13 @@ matlab -batch "run('tools/gen_reference_thermal.m')"
 matlab -batch "run('tools/gen_reference_mohr_aniso.m')"   # .mlapp 콜백의 계산부를 함수로 복사해 실행
 python tools/make_reference_borehole_m.py                  # BSA210831_v2.m 계산 블록을 그대로 잘라 함수로 감싼 .m 생성
 matlab -batch "run('tools/gen_reference_borehole.m')"
+python tools/make_reference_hydroshear_m.py && matlab -batch "run('tools/gen_reference_hydroshear.m')"
+python tools/make_reference_stereonet_m.py  && matlab -batch "run('tools/gen_reference_stereonet.m')"
+python tools/make_reference_dfn_m.py        && matlab -batch "run('tools/gen_reference_dfn.m')"
 ```
+
+3D DFN은 MATLAB `rng(seed,'twister')`와 numpy `RandomState(seed)`의 균일난수 스트림이 동일하다는 점을 이용해
+같은 시드의 실현(realisation) 전체를 비교합니다. Python에서 seed를 주면 MATLAB과 같은 DFN이 나옵니다.
 
 이식 중 확인된 MATLAB 원본의 문제와 Python에서의 처리:
 
@@ -78,6 +85,22 @@ matlab -batch "run('tools/gen_reference_borehole.m')"
   요소 중심 응력은 MATLAB과 1e‑6 이내로 일치합니다.
 - Breakout 기하(Rbbo, θbbo) 계산은 원본이 각도 인덱스가 배열 밖으로 나가면 오류가 나지만 Python은
   둘레 방향으로 순환 처리합니다.
+- Hydroshearing: 원본 `stereonetGroup.m`은 `zeros(no)`로 91×91 행렬을 만들어 첫 열만 쓰고, 확률 곡선도
+  91개 선을 겹쳐 그립니다(나머지는 0). Python은 91개 벡터만 씁니다. 원본의 "bbl"은 42 gal 석유 배럴이
+  아니라 31.5 gal 액체 배럴(0.11924 m³)이며 그대로 두었습니다.
+- Stereographic Projection: 원본 `dist3.m`은 `for i=1:size(data)`(비스칼라 콜론 피연산자) 때문에 최신
+  MATLAB(R2023 이후)에서 실행되지 않습니다. Python은 일반 유클리드 거리로 대체했습니다. 상반구 도법에서
+  클릭한 극점의 dip direction이 180° 어긋나던 문제(투영은 좌표를 반전하지만 역변환은 하지 않음)를
+  수정했고, 대원(great circle)은 원본이 등면적 도법에서도 등각 반지름을 쓰던 것을 도법에 맞게 그립니다.
+  FCM 군집은 원본처럼 난수 초기화이므로 실행마다 결과가 달라질 수 있습니다(seed 인자로 고정 가능).
+- 3D DFN: 원본의 'Square' 분기는 3×3 행렬과 1×3 행벡터를 곱해 실행 자체가 안 되고, 꼭짓점 z 오프셋이
+  균열 크기와 무관하게 고정돼 있습니다. Python은 원판과 같은 방식으로 한 변이 l인 정사각형을 만듭니다.
+  로그정규 개구폭은 원본이 평균 대신 균열 길이 l을 쓰는 오타가 있어 평균으로 고쳤습니다. 원본의
+  'Normal'/'Log normal' 개구폭은 Statistics Toolbox가 없으면 실행되지 않습니다. 시추공 교차 판정은 원본처럼
+  심도 범위를 검사하지 않습니다.
+- Units: `Units.m`의 lbf/ft² 입력 환산계수 4.788은 10배 작은 값(1 lbf/ft² = 47.88 Pa, 출력 계수 0.02089는
+  정상)이라 Python은 47.88을 씁니다. 단위 이름과 순서는 MATLAB 팝업 메뉴와 같아 `HFsim_units/*.txt`
+  단위 세트 파일을 그대로 읽고 씁니다.
 
 ## 폴더 구조
 
