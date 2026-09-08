@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 from geomech.core import dfn_rockmass as rm
 from geomech.gui.mplcanvas import MplWidget
+from geomech.gui.util import fit_scroll_width
 from geomech.gui.worker import run_async
 
 SET_COLORS = ["#4878CF", "#6ACC65", "#D65F5F", "#B47CC7", "#C4AD66", "#77BEDB", "#8C613C"]
@@ -65,6 +66,8 @@ class DFNRockMassPanel(QWidget):
         for c, w in enumerate((60, 80, 90, 45, 55, 60, 60, 45, 50, 65, 65, 55)):
             self.table.setColumnWidth(c, w)
         self.table.setMinimumHeight(190)
+        self.table.setMinimumWidth(self.table.horizontalHeader().length() + self.table.verticalHeader().sizeHint().width()
+                                   + 2 * self.table.frameWidth() + 4)          # all 12 columns visible
         v.addWidget(self.table)
         row = QHBoxLayout()
         b = QPushButton("Add set"); b.clicked.connect(self.add_set); row.addWidget(b)
@@ -109,8 +112,10 @@ class DFNRockMassPanel(QWidget):
             self.tabs.addTab(w, t)
         root.addWidget(self.tabs, 1)
         self.load_preset()
+        fit_scroll_width(scroll)          # never cut the inputs off horizontally
 
     # ------------------------------------------------------------ sets
+
     def _set_row(self, r: int, s: rm.FractureSet):
         vals = [s.name, f"{s.P32:g}", s.dist_type, f"{s.kr:g}", f"{s.r0:g}", f"{s.rmin:g}", f"{s.rmax:g}",
                 f"{s.mu:g}", f"{s.sigma:g}", f"{s.trend:g}", f"{s.plunge:g}", f"{s.kappa:g}"]

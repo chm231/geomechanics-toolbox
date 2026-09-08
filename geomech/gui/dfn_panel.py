@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 
 from geomech.core import dfn
 from geomech.gui.mplcanvas import MplWidget
+from geomech.gui.util import fit_scroll_width
 
 
 def _edit(text: str, width: int = 70) -> QLineEdit:
@@ -142,8 +143,10 @@ class DFNToolboxPanel(QWidget):
             self.tabs.addTab(w, t)
         root.addWidget(self.tabs, 1)
         self._size_changed()
+        fit_scroll_width(scroll)          # never cut the inputs off horizontally
 
     # ------------------------------------------------------------ helpers
+
     def _size_changed(self):
         ne = self.rb_ne.isChecked()
         for e in (self.in_len,):

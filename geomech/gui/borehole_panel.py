@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 
 from geomech.core import borehole as bh
 from geomech.gui.mplcanvas import MplWidget
+from geomech.gui.util import fit_scroll_width
 from geomech.gui.worker import run_async
 
 
@@ -148,6 +149,7 @@ class BoreholePanel(QWidget):
         self.tabs.addTab(self.plot_obb, "Breakout orientation")
         self._mode_changed()
         self._elastic_changed()
+        fit_scroll_width(scroll)          # never cut the inputs off horizontally
 
     def _build_stress_tab(self) -> QWidget:
         w = QWidget()

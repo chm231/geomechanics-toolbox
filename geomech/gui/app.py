@@ -18,6 +18,7 @@ from geomech.gui.hydroshear_panel import HydroshearPanel
 from geomech.gui.mohr_panel import MohrPanel
 from geomech.gui.stereonet_panel import StereonetPanel
 from geomech.gui.thermal_panel import ThermalPanel
+from geomech.gui.util import default_window_size
 
 # (label, factory or None while not yet ported) - order follows Simulator_int.mlapp
 MODULES = [
@@ -60,7 +61,7 @@ class Launcher(QMainWindow):
     def open_module(self, factory):
         w = factory()
         w.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        w.resize(1200, 720)
+        w.resize(*default_window_size(w))      # the panel's own size hint, clamped to the screen
         w.show()
         self._windows.append(w)
 
