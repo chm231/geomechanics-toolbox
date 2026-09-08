@@ -394,6 +394,93 @@ def intersect_poly_plane(poly, dim: int, val: float, tol=1e-8):
     return pair
 
 
+# --------------------------------------------------------------------------
+# Batched clipping (vectorised Sutherland-Hodgman on padded polygon arrays).
+# clip_disc / _clip_halfspace above are the per-fracture reference kept for the
+# oracle tests; the functions below give identical polygons, ~20x faster.
+# --------------------------------------------------------------------------
+_PLANES = (("xmin", 0, 1.0), ("xmax", 0, -1.0), ("ymin", 1, 1.0), ("ymax", 1, -1.0), ("zmin", 2, 1.0), ("zmax", 2, -1.0))
+
+
+def disc_polygons(centers, normals, radii, n_pts=36):
+    """Batched disc_polygon: (N, n_pts, 3), same vertices as the per-disc version."""
+    C = np.asarray(centers, float).reshape(-1, 3)
+    Nn = np.asarray(normals, float).reshape(-1, 3)
+    R = np.asarray(radii, float).reshape(-1)
+    Nn = Nn / np.linalg.norm(Nn, axis=1, keepdims=True)
+    ref = np.where((np.abs(Nn[:, 2]) < 0.95)[:, None], np.array([0., 0., 1.]), np.array([1., 0., 0.]))
+    u = np.cross(ref, Nn); u /= np.linalg.norm(u, axis=1, keepdims=True)
+    v = np.cross(Nn, u); v /= np.linalg.norm(v, axis=1, keepdims=True)
+    a = np.linspace(0, 2 * np.pi, n_pts, endpoint=False)
+    return C[:, None, :] + R[:, None, None] * (np.cos(a)[None, :, None] * u[:, None, :] + np.sin(a)[None, :, None] * v[:, None, :])
+
+
+def _clip_halfspace_batch(P, valid, dim, val, sign):
+    """One Sutherland-Hodgman step on padded polygons P (N, n, 3); `valid` (N, n) marks the
+    vertices, packed at the front of each row. Keeps the side sign * (x[dim] - val) >= 0."""
+    N, n, _ = P.shape
+    cnt = valid.sum(1)
+    d = sign * (P[..., dim] - val)
+    nxt = (np.arange(n)[None, :] + 1) % np.maximum(cnt, 1)[:, None]
+    P2 = np.take_along_axis(P, nxt[..., None], 1)
+    d2 = np.take_along_axis(d, nxt, 1)
+    in1, in2 = d >= 0, d2 >= 0
+    keep = valid & in1
+    cross = valid & (in1 != in2)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        t = d / (d - d2)
+        I = P + t[..., None] * (P2 - P)
+    out = np.empty((N, 2 * n, 3)); m = np.zeros((N, 2 * n), bool)
+    out[:, 0::2] = P; out[:, 1::2] = np.where(cross[..., None], I, 0.0)
+    m[:, 0::2] = keep; m[:, 1::2] = cross
+    order = np.argsort(~m, axis=1, kind="stable")          # pack the surviving vertices to the front
+    out = np.take_along_axis(out, order[..., None], 1); m = np.take_along_axis(m, order, 1)
+    w = int(m.sum(1).max()) if N else 0
+    return out[:, :w], m[:, :w]
+
+
+def _clip_rows(P, cb):
+    valid = np.ones(P.shape[:2], bool)
+    idx = np.arange(len(P))
+    for key, dim, sign in _PLANES:
+        if not len(P):
+            break
+        P, valid = _clip_halfspace_batch(P, valid, dim, cb[key], sign)
+        ok = valid.sum(1) >= 3
+        P, valid, idx = P[ok], valid[ok], idx[ok]
+    return P, valid, idx
+
+
+def clip_discs(centers, normals, radii, cb: dict, n_pts=36):
+    """Batched clip_disc. Returns padded polygons (M, w, 3), their vertex mask (M, w) and a
+    boolean `kept` over the input discs (M = kept.sum()); discs entirely inside the box are
+    passed through unclipped, exactly as the per-disc clipping would leave them."""
+    P = disc_polygons(centers, normals, radii, n_pts)
+    if not len(P):
+        return np.zeros((0, n_pts, 3)), np.zeros((0, n_pts), bool), np.zeros(0, bool)
+    lo, hi = P.min(1), P.max(1)
+    inside = ((lo[:, 0] >= cb["xmin"]) & (hi[:, 0] <= cb["xmax"]) & (lo[:, 1] >= cb["ymin"]) & (hi[:, 1] <= cb["ymax"])
+              & (lo[:, 2] >= cb["zmin"]) & (hi[:, 2] <= cb["zmax"]))
+    Pc, vc, ic = _clip_rows(P[~inside], cb)
+    ci = np.flatnonzero(~inside)[ic]
+    w = max(n_pts, Pc.shape[1])
+    out = np.zeros((len(P), w, 3)); valid = np.zeros((len(P), w), bool)
+    out[inside, :n_pts] = P[inside]; valid[inside, :n_pts] = True
+    out[ci, :Pc.shape[1]] = Pc; valid[ci, :vc.shape[1]] = vc
+    kept = inside.copy(); kept[ci] = True
+    return out[kept], valid[kept], kept
+
+
+def polygon_areas(P, valid):
+    """Area of each padded polygon (centroid fan, as the per-polygon sum)."""
+    cnt = valid.sum(1)
+    cen = np.where(valid[..., None], P, 0.0).sum(1) / np.maximum(cnt, 1)[:, None]
+    nxt = (np.arange(P.shape[1])[None, :] + 1) % np.maximum(cnt, 1)[:, None]
+    P2 = np.take_along_axis(P, nxt[..., None], 1)
+    tri = 0.5 * np.linalg.norm(np.cross(P - cen[:, None], P2 - cen[:, None]), axis=2)
+    return np.where(valid, tri, 0.0).sum(1)
+
+
 def _candidates(dfn: RockMassDFN, cb: dict):
     c, r = dfn.centers, dfn.radii
     return ((c[:, 0] - r <= cb["xmax"]) & (c[:, 0] + r >= cb["xmin"]) & (c[:, 1] - r <= cb["ymax"]) & (c[:, 1] + r >= cb["ymin"])
@@ -406,24 +493,52 @@ class ClippedDFN:
     set_id: np.ndarray
     total_area: float
     p32: float
+    index: np.ndarray = field(default_factory=lambda: np.zeros(0, int))   # fracture index in the RockMassDFN
+    areas: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    lower: np.ndarray = field(default_factory=lambda: np.zeros((0, 3)))   # per-polygon bounding boxes
+    upper: np.ndarray = field(default_factory=lambda: np.zeros((0, 3)))
+    volume: float = 0.0
+
+    def subset(self, mask) -> "ClippedDFN":
+        mask = np.asarray(mask, bool)
+        area = float(self.areas[mask].sum())
+        return ClippedDFN([p for p, m in zip(self.polygons, mask) if m], self.set_id[mask], area,
+                          area / self.volume if self.volume > 0 else 0.0, self.index[mask], self.areas[mask],
+                          self.lower[mask], self.upper[mask], self.volume)
 
 
-def clip_to_crop_box(dfn: RockMassDFN, cb: dict, tunnel_poly_yz: np.ndarray | None = None) -> ClippedDFN:
+def clip_to_crop_box(dfn: RockMassDFN, cb: dict, tunnel_poly_yz: np.ndarray | None = None,
+                     chunk: int = 50_000) -> ClippedDFN:
     """Discs clipped to the crop box; optionally only those touching the tunnel polygon
     (given in the y-z plane, as the tunnel axis is x)."""
-    from matplotlib.path import Path as MplPath
-    path = MplPath(tunnel_poly_yz) if tunnel_poly_yz is not None else None
     idx = np.flatnonzero(_candidates(dfn, cb))
-    polys, sids, area = [], [], 0.0
-    for i in idx:
-        poly = clip_disc(dfn.centers[i].astype(float), dfn.normals[i].astype(float), float(dfn.radii[i]), cb)
-        if poly is None or (path is not None and not path.contains_points(poly[:, 1:3]).any()):
-            continue
-        polys.append(poly); sids.append(int(dfn.set_id[i]))
-        c = poly.mean(axis=0)
-        area += sum(np.linalg.norm(np.cross(poly[j] - c, poly[(j + 1) % len(poly)] - c)) / 2 for j in range(len(poly)))
+    polys, index, areas, lower, upper = [], [], [], [], []
+    for s in range(0, len(idx), chunk):
+        ii = idx[s:s + chunk]
+        P, valid, kept = clip_discs(dfn.centers[ii], dfn.normals[ii], dfn.radii[ii], cb)
+        cnt = valid.sum(1)
+        polys.extend(P[k, :cnt[k]] for k in range(len(P)))
+        index.append(ii[kept]); areas.append(polygon_areas(P, valid))
+        lower.append(np.where(valid[..., None], P, np.inf).min(1)); upper.append(np.where(valid[..., None], P, -np.inf).max(1))
     V = (cb["xmax"] - cb["xmin"]) * (cb["ymax"] - cb["ymin"]) * (cb["zmax"] - cb["zmin"])
-    return ClippedDFN(polys, np.array(sids, int), area, area / V if V > 0 else 0.0)
+    index = np.concatenate(index) if index else np.zeros(0, int)
+    areas = np.concatenate(areas) if areas else np.zeros(0)
+    lower = np.concatenate(lower) if lower else np.zeros((0, 3))
+    upper = np.concatenate(upper) if upper else np.zeros((0, 3))
+    area = float(areas.sum())
+    out = ClippedDFN(polys, dfn.set_id[index].astype(int), area, area / V if V > 0 else 0.0, index, areas, lower, upper, V)
+    return out if tunnel_poly_yz is None else tunnel_subset(out, tunnel_poly_yz)
+
+
+def tunnel_subset(clipped: ClippedDFN, tunnel_poly_yz: np.ndarray) -> ClippedDFN:
+    """Clipped fractures with at least one vertex inside the tunnel polygon (y-z plane)."""
+    if not clipped.polygons:
+        return clipped
+    from matplotlib.path import Path as MplPath
+    counts = np.array([len(p) for p in clipped.polygons])
+    flags = MplPath(tunnel_poly_yz).contains_points(np.concatenate(clipped.polygons)[:, 1:3])
+    starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
+    return clipped.subset(np.logical_or.reduceat(flags, starts))
 
 
 @dataclass
@@ -438,18 +553,18 @@ class TraceMap:
     v_index: int
 
 
-def trace_map(dfn: RockMassDFN, cb: dict, axis: str = "x", value: float = 0.0) -> TraceMap:
+def trace_map(src: RockMassDFN | ClippedDFN, cb: dict, axis: str = "x", value: float = 0.0) -> TraceMap:
+    """Traces of the clipped fractures on the plane axis = value. `src` may be the clipped
+    result of clip_to_crop_box(dfn, cb) (reused across the three trace maps) or the DFN itself."""
+    clipped = src if isinstance(src, ClippedDFN) else clip_to_crop_box(src, cb)
     dim = "xyz".index(axis)
     h, v = {0: (1, 2), 1: (0, 2), 2: (0, 1)}[dim]
-    m = _candidates(dfn, cb) & (dfn.centers[:, dim] - dfn.radii <= value) & (dfn.centers[:, dim] + dfn.radii >= value)
+    cand = np.flatnonzero((clipped.lower[:, dim] - 1e-8 <= value) & (clipped.upper[:, dim] + 1e-8 >= value))
     segs, sids, L = [], [], 0.0
-    for i in np.flatnonzero(m):
-        poly = clip_disc(dfn.centers[i].astype(float), dfn.normals[i].astype(float), float(dfn.radii[i]), cb)
-        if poly is None:
-            continue
-        seg = intersect_poly_plane(poly, dim, value)
+    for i in cand:
+        seg = intersect_poly_plane(clipped.polygons[i], dim, value)
         if seg is not None:
-            segs.append(seg); sids.append(int(dfn.set_id[i])); L += float(np.linalg.norm(seg[0] - seg[1]))
+            segs.append(seg); sids.append(int(clipped.set_id[i])); L += float(np.linalg.norm(seg[0] - seg[1]))
     lo = [cb["xmin"], cb["ymin"], cb["zmin"]]; hi = [cb["xmax"], cb["ymax"], cb["zmax"]]
     A = (hi[h] - lo[h]) * (hi[v] - lo[v])
     return TraceMap(axis, value, segs, np.array(sids, int), L, L / A if A > 0 else 0.0, h, v)

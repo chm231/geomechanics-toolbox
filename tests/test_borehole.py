@@ -102,3 +102,26 @@ def test_local_mohr_and_failure_indicators():
     assert lm.theta_deg == pytest.approx(90, abs=0.3)
     assert lm.Sp1 >= lm.Sp2 >= lm.Sp3
     assert lm.mc_line is not None and lm.C0 > 0
+
+
+def test_batched_wall_stresses_and_thermal_voigt_match_scalar_calls():
+    """all_orientations evaluates every (delta, phi) at once; the batch must equal the scalar
+    calUCS/calOBB port point by point, thermal terms included."""
+    amatte = bh.compliance_isotropic(100, 0.25) / bh.MPA
+    S_g = bh.stress_tensor_geographic(20, 10, 15)
+    delta = np.deg2rad([0.0, 37.0, 200.0]); phi = np.deg2rad([0.0, 45.0, 90.0])
+    batch = bh._wall_stresses(delta[:, None], phi[None, :], 10.0, 15.0, 0.25, S_g, amatte, 5.0, 1e-5)
+    assert batch.shape == (3, 3, 201)
+    for i, d in enumerate(delta):
+        for j, f in enumerate(phi):
+            one = bh._wall_stresses(d, f, 10.0, 15.0, 0.25, S_g, amatte, 5.0, 1e-5)
+            np.testing.assert_allclose(batch[i, j], one, rtol=1e-12)
+            assert bh._first_max_angle(batch[i, j]) == pytest.approx(bh.breakout_orientation(d, f, 10.0, 15.0, 0.25, S_g, amatte, 5.0, 1e-5))
+    # per-angle 6x6 solves (the MATLAB loop) against the batched version
+    theta = np.linspace(0, 2 * np.pi, 37)
+    amat = bh.compliance_transverse(100, 60, 0.25, 0.2, 30) / bh.MPA
+    loop = np.array([np.linalg.solve(T, np.r_[0.0, np.linalg.solve((T.T @ amat @ T)[1:3, 1:3], [5e-5, 5e-5]), 0.0, 0.0, 0.0])
+                     for T in (bh._eptrans(t) for t in theta)])
+    np.testing.assert_allclose(bh._thermal_voigt(amat, theta, 5.0, 1e-5), loop, rtol=1e-9, atol=1e-12)
+    assert bh._eptrans(theta).shape == (37, 6, 6)
+    np.testing.assert_allclose(bh._eptrans(theta)[5], bh._eptrans(theta[5]))

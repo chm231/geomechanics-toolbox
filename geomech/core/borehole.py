@@ -85,41 +85,49 @@ class BoreholeParams:
 # Tensor transformation helpers
 # --------------------------------------------------------------------------
 def _voigt_T(L1, L2, L3, M1, M2, M3, N1, N2, N3) -> np.ndarray:
-    return np.array([
+    """Voigt transformation matrix; scalars give (6, 6), arrays broadcast to (..., 6, 6)."""
+    L1, L2, L3, M1, M2, M3, N1, N2, N3 = np.broadcast_arrays(
+        *[np.asarray(a, float) for a in (L1, L2, L3, M1, M2, M3, N1, N2, N3)])
+    rows = [
         [L1**2, M1**2, N1**2, 2 * M1 * N1, 2 * N1 * L1, 2 * L1 * M1],
         [L2**2, M2**2, N2**2, 2 * M2 * N2, 2 * N2 * L2, 2 * L2 * M2],
         [L3**2, M3**2, N3**2, 2 * M3 * N3, 2 * N3 * L3, 2 * L3 * M3],
         [L2 * L3, M2 * M3, N2 * N3, M2 * N3 + M3 * N2, N2 * L3 + N3 * L2, L2 * M3 + L3 * M2],
         [L3 * L1, M3 * M1, N3 * N1, M1 * N3 + M3 * N1, N1 * L3 + N3 * L1, L1 * M3 + L3 * M1],
         [L1 * L2, M1 * M2, N1 * N2, M1 * N2 + M2 * N1, N1 * L2 + N2 * L1, L1 * M2 + L2 * M1],
-    ], dtype=float)
+    ]
+    return np.stack([np.stack(r, -1) for r in rows], -2)
 
 
-def borehole_transform(Gpol: float, Gazi: float) -> np.ndarray:
-    """Ong (1994) transformation from global to borehole axes (Tsig)."""
+def borehole_transform(Gpol, Gazi) -> np.ndarray:
+    """Ong (1994) transformation from global to borehole axes (Tsig); arrays broadcast."""
     L1 = np.cos(Gpol) * np.cos(Gazi); L2 = -np.sin(Gazi); L3 = np.sin(Gpol) * np.cos(Gazi)
     M1 = np.cos(Gpol) * np.sin(Gazi); M2 = np.cos(Gazi); M3 = np.sin(Gazi) * np.sin(Gpol)
     N1 = -np.sin(Gpol); N2 = 0.0; N3 = np.cos(Gpol)
     return _voigt_T(L1, L2, L3, M1, M2, M3, N1, N2, N3)
 
 
-def _eptrans(theta: float) -> np.ndarray:
+def _eptrans(theta) -> np.ndarray:
+    """In-plane rotation by theta; an array of angles gives (n, 6, 6)."""
     c, s = np.cos(theta), np.sin(theta)
     return _voigt_T(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0)
 
 
-def _thermal_voigt(amat: np.ndarray, theta: np.ndarray, Gtc: float, Gec: float) -> np.ndarray:
-    """Thermal stress (Voigt, x-y-z frame) at every theta - the MATLAB per-angle solve."""
-    out = np.zeros((len(theta), 6))
+def _thermal_voigt(amat: np.ndarray, theta, Gtc: float, Gec: float) -> np.ndarray:
+    """Thermal stress (Voigt, x-y-z frame) at every theta - the MATLAB per-angle solve,
+    batched over the angles (and over leading axes of amat: (..., 6, 6) -> (..., n, 6))."""
+    amat = np.asarray(amat, float)
+    theta = np.atleast_1d(np.asarray(theta, float))
+    out_shape = amat.shape[:-2] + (len(theta), 6)
     if Gtc * Gec == 0.0:
-        return out
-    rhs2 = np.array([Gtc * Gec, Gtc * Gec])
-    for k, th in enumerate(theta):
-        T = _eptrans(th)
-        ep = T.T @ amat @ T
-        s = np.linalg.solve(ep[1:3, 1:3], rhs2)
-        out[k] = np.linalg.solve(T, np.array([0.0, s[0], s[1], 0.0, 0.0, 0.0]))
-    return out
+        return np.zeros(out_shape)
+    T = _eptrans(theta)                                        # (n, 6, 6)
+    ep = np.swapaxes(T, -1, -2) @ amat[..., None, :, :] @ T    # T' amat T for every (..., n)
+    rhs = np.full(out_shape[:-1] + (2, 1), Gtc * Gec)
+    s = np.linalg.solve(ep[..., 1:3, 1:3], rhs)[..., 0]
+    v = np.zeros(out_shape)
+    v[..., 1] = s[..., 0]; v[..., 2] = s[..., 1]
+    return (np.linalg.inv(T) @ v[..., None])[..., 0]           # T^-1 v, T inverted once per angle
 
 
 def _rotate_to_polar(Sxx, Syy, Szz, Txy, Txz, Tyz, theta):
@@ -266,22 +274,23 @@ def analytic_solution(p: BoreholeParams, r_factors: np.ndarray | None = None,
     q3 = lbd[2] * (b12 * mu[2] + b22 / mu[2] - b26) + b25 - b24 / mu[2]
 
     nr, nth = len(r), len(theta)
-    # branch tracking of the square root, sequential in theta (MATLAB stsign/detsign)
+    # branch tracking of the square root, sequential in theta (MATLAB stsign/detsign):
+    # stsign becomes -1 once Im > 0 and returns to +1 once Im < 0 (zeros keep the state);
+    # every return flips detsign. Vectorised with a forward-filled state instead of the loop.
     detert = np.zeros((3, nr, nth), dtype=complex)
     zeta = np.zeros((3, nr, nth), dtype=complex)
+    jj = np.arange(nth)[None, :]
     for k in range(3):
         z = r[:, None] * (np.cos(theta)[None, :] + mu[k] * np.sin(theta)[None, :])
         deter = (z / R) ** 2 - 1 - mu[k] ** 2
-        stsign = np.ones(nr)
-        detsign = np.ones(nr)
         im = deter.imag
-        for j in range(nth):
-            flip_neg = (stsign == 1) & (im[:, j] > 0)
-            stsign[flip_neg] = -1
-            back = (stsign == -1) & (im[:, j] < 0) & ~flip_neg
-            stsign[back] = 1
-            detsign[back] *= -1
-            detert[k, :, j] = detsign * np.sqrt(deter[:, j])
+        sgn = np.where(im > 0, -1, np.where(im < 0, 1, 0))
+        last = np.maximum.accumulate(np.where(sgn != 0, jj, -1), axis=1)
+        state = np.where(last >= 0, np.take_along_axis(sgn, np.maximum(last, 0), axis=1), 1)
+        prev = np.concatenate([np.ones((nr, 1), int), state[:, :-1]], axis=1)
+        back = (prev == -1) & (im < 0)
+        detsign = np.cumprod(np.where(back, -1.0, 1.0), axis=1)
+        detert[k] = detsign * np.sqrt(deter)
         zeta[k] = (z / R + detert[k]) / (1 - 1j * mu[k])
 
     A = 1j * Gtxy - Gsy + Gfp
@@ -357,29 +366,34 @@ def fem_mesh(Gr: float, rmesh: int, thmesh: int):
 
 
 def _bmat(x, y, zeta, eta):
-    x1, x2, x3, x4 = x
-    y1, y2, y3, y4 = y
-    J = 0.25 * np.array([[(x2 - x1) * (1 - eta) + (x3 - x4) * (1 + eta), (y2 - y1) * (1 - eta) + (y3 - y4) * (1 + eta)],
-                         [(x4 - x1) * (1 - zeta) + (x3 - x2) * (1 + zeta), (y4 - y1) * (1 - zeta) + (y3 - y2) * (1 + zeta)]])
-    dJ = abs(np.linalg.det(J))
-    j11, j12, j21, j22 = J[0, 0], J[0, 1], J[1, 0], J[1, 1]
+    """Strain-displacement matrix of 4-node quads at (zeta, eta).
+    x, y: (4,) for one element or (ne, 4) for all; returns B (..., 3, 8) and |J| (...)."""
+    x = np.asarray(x, float); y = np.asarray(y, float)
+    x1, x2, x3, x4 = (x[..., k] for k in range(4))
+    y1, y2, y3, y4 = (y[..., k] for k in range(4))
+    j11 = 0.25 * ((x2 - x1) * (1 - eta) + (x3 - x4) * (1 + eta))
+    j12 = 0.25 * ((y2 - y1) * (1 - eta) + (y3 - y4) * (1 + eta))
+    j21 = 0.25 * ((x4 - x1) * (1 - zeta) + (x3 - x2) * (1 + zeta))
+    j22 = 0.25 * ((y4 - y1) * (1 - zeta) + (y3 - y2) * (1 + zeta))
+    dJ = np.abs(j11 * j22 - j12 * j21)
     a = [-(1 - eta) * j22 + (1 - zeta) * j12, (1 - eta) * j22 + (1 + zeta) * j12,
          (1 + eta) * j22 - (1 + zeta) * j12, -(1 + eta) * j22 - (1 - zeta) * j12]
     b = [(1 - eta) * j21 - (1 - zeta) * j11, -(1 - eta) * j21 - (1 + zeta) * j11,
          -(1 + eta) * j21 + (1 + zeta) * j11, (1 + eta) * j21 + (1 - zeta) * j11]
-    B = np.zeros((3, 8))
+    B = np.zeros(np.shape(dJ) + (3, 8))
     for k in range(4):
-        B[0, 2 * k] = a[k]
-        B[1, 2 * k + 1] = b[k]
-        B[2, 2 * k] = b[k]
-        B[2, 2 * k + 1] = a[k]
-    return B / (4 * dJ), dJ
+        B[..., 0, 2 * k] = a[k]
+        B[..., 1, 2 * k + 1] = b[k]
+        B[..., 2, 2 * k] = b[k]
+        B[..., 2, 2 * k + 1] = a[k]
+    return B / (4 * np.asarray(dJ))[..., None, None], dJ
 
 
 def fem_solution(p: BoreholeParams, rmesh: int = 60, thmesh: int = 60, interp_n: int = 400) -> StressField:
     """2-D plane-strain FEM (x-y borehole plane). Returns element-centre stresses
     interpolated onto a polar grid like the MATLAB code (which used a 5000x5000 grid)."""
-    from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
+    from scipy.interpolate import LinearNDInterpolator
+    from scipy.spatial import Delaunay, cKDTree
 
     amat, (Gsx, Gsy, Gsz, Gtyz, Gtxz, Gtxy), Gfp, Gtc, Gec = _prepare(p)
     Gr = p.radius
@@ -390,17 +404,17 @@ def fem_solution(p: BoreholeParams, rmesh: int = 60, thmesh: int = 60, interp_n:
     gp = [-np.sqrt(3 / 5), 0.0, np.sqrt(3 / 5)]
     gw = np.array([[25, 40, 25], [40, 64, 40], [25, 40, 25]]) / 81
     ndof = 2 * len(nodep)
-    rows, cols, vals = [], [], []
-    for el in nodet:
-        x, y = nodep[el, 0], nodep[el, 1]
-        Ke = np.zeros((8, 8))
-        for i, gz in enumerate(gp):
-            for j, ge in enumerate(gp):
-                B, dJ = _bmat(x, y, gz, ge)
-                Ke += gw[i, j] * B.T @ C @ B * dJ
-        dofs = np.array([[2 * n, 2 * n + 1] for n in el]).ravel()
-        rows.append(np.repeat(dofs, 8)); cols.append(np.tile(dofs, 8)); vals.append(Ke.ravel())
-    K = sp.csr_matrix((np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))), shape=(ndof, ndof))
+    ne = len(nodet)
+    # element stiffness for all elements at once: Ke = sum_g w_g B' C B |J|
+    X, Y = nodep[nodet, 0], nodep[nodet, 1]                    # (ne, 4)
+    Ke = np.zeros((ne, 8, 8))
+    for i, gz in enumerate(gp):
+        for j, ge in enumerate(gp):
+            B, dJ = _bmat(X, Y, gz, ge)                        # (ne, 3, 8), (ne,)
+            Ke += gw[i, j] * dJ[:, None, None] * np.einsum("eki,kl,elj->eij", B, C, B)
+    dofs = np.stack([2 * nodet, 2 * nodet + 1], -1).reshape(ne, 8)
+    rows = np.repeat(dofs, 8, axis=1).ravel(); cols = np.tile(dofs, (1, 8)).ravel()
+    K = sp.csr_matrix((Ke.ravel(), (rows, cols)), shape=(ndof, ndof))
 
     # boundary tractions on the outer square (MATLAB node bookkeeping, 1-based kcount)
     F = np.zeros(ndof)
@@ -440,15 +454,10 @@ def fem_solution(p: BoreholeParams, rmesh: int = 60, thmesh: int = 60, interp_n:
     sol = spla.spsolve(Kaug, np.concatenate([Fp, np.zeros(3)]))
     atot = sol[:ndof]
 
-    # element-centre stresses
-    ne = len(nodet)
-    stress = np.zeros((ne, 3)); xe = np.zeros(ne); ye = np.zeros(ne)
-    for k, el in enumerate(nodet):
-        x, y = nodep[el, 0], nodep[el, 1]
-        B, _ = _bmat(x, y, 0.0, 0.0)
-        a = atot[np.array([[2 * m, 2 * m + 1] for m in el]).ravel()]
-        stress[k] = C @ B @ a
-        xe[k], ye[k] = x.mean(), y.mean()
+    # element-centre stresses, all elements at once
+    B0, _ = _bmat(X, Y, 0.0, 0.0)                              # (ne, 3, 8)
+    stress = np.einsum("kl,elj,ej->ek", C, B0, atot[dofs])     # C @ B @ a per element
+    xe, ye = X.mean(1), Y.mean(1)
     th_e = np.arctan2(ye, xe)
     c, s = np.cos(th_e), np.sin(th_e)
     srr = stress[:, 0] * c**2 + 2 * stress[:, 2] * s * c + stress[:, 1] * s**2
@@ -458,10 +467,9 @@ def fem_solution(p: BoreholeParams, rmesh: int = 60, thmesh: int = 60, interp_n:
     if Gtc * Gec != 0.0:
         tv = _thermal_voigt(amat, th_e, Gtc, Gec)
         # thermalstele = tangential thermal stress (stthertemp(1)); recompute it directly
-        for k, t in enumerate(th_e):
-            T = _eptrans(t)
-            ep = (T.T @ amat @ T)[1:3, 1:3]
-            thermal[k] = np.linalg.solve(ep, [Gtc * Gec, Gtc * Gec])[0]
+        T = _eptrans(th_e)
+        ep = np.einsum("nji,jk,nkl->nil", T, amat, T)[:, 1:3, 1:3]
+        thermal = np.linalg.solve(ep, np.full((ne, 2, 1), Gtc * Gec))[:, 0, 0]
         sxx, syy, sxy = tv[:, 0], tv[:, 1], tv[:, 5]
     stt = stt + thermal
     sxx = sxx + stress[:, 0]; syy = syy + stress[:, 1]; sxy = sxy + stress[:, 2]
@@ -470,13 +478,19 @@ def fem_solution(p: BoreholeParams, rmesh: int = 60, thmesh: int = 60, interp_n:
     RF, TH = np.meshgrid(np.linspace(r_e.min(), r_e.max(), interp_n), np.linspace(0, 2 * np.pi, interp_n))
     XF, YF = RF * np.cos(TH), RF * np.sin(TH)
     pts = np.column_stack([xe, ye])
+    tri = Delaunay(pts)                                        # one triangulation for all fields
+    grid = np.column_stack([XF.ravel(), YF.ravel()])
+    tree = None
 
     def interp(v):
-        lin = LinearNDInterpolator(pts, v)(XF, YF)
+        nonlocal tree
+        lin = LinearNDInterpolator(tri, v)(grid)
         bad = np.isnan(lin)
         if bad.any():
-            lin[bad] = NearestNDInterpolator(pts, v)(XF[bad], YF[bad])
-        return lin.T
+            if tree is None:
+                tree = cKDTree(pts)
+            lin[bad] = v[tree.query(grid[bad])[1]]
+        return lin.reshape(XF.shape).T
 
     Sr, St, Trt, Sxx, Syy, Txy, thermalst = (interp(v) for v in (srr, stt, srt, sxx, syy, sxy, thermal))
     zero = np.zeros_like(Sr)
@@ -583,31 +597,29 @@ def local_mohr(f: StressField, r: float, theta_deg: float, s: Strength | None = 
 # All orientations (isotropic): required UCS and breakout orientation stereonets
 # --------------------------------------------------------------------------
 def _wall_stresses(delta, phi, Pp, Pmud, v, S_g, amatte, Gtc, Gec):
-    """Port of the shared body of calUCS.m / calOBB.m: (sig_tmax over theta)."""
+    """Port of the shared body of calUCS.m / calOBB.m: sig_tmax over theta.
+    delta, phi may be arrays (broadcast together); returns broadcast shape + (n_theta,)."""
+    delta, phi = np.broadcast_arrays(np.asarray(delta, float), np.asarray(phi, float))
     Gpol, Gazi = phi, np.pi / 2 - delta
     S_gg = np.array([S_g[1, 1], S_g[0, 0], S_g[2, 2], S_g[1, 2], S_g[0, 2], S_g[0, 1]])
-    L1 = np.cos(Gpol) * np.cos(Gazi); L2 = -np.sin(Gazi); L3 = np.sin(Gpol) * np.cos(Gazi)
-    M1 = np.cos(Gpol) * np.sin(Gazi); M2 = np.cos(Gazi); M3 = np.sin(Gazi) * np.sin(Gpol)
-    N1 = -np.sin(Gpol); N2 = 0.0; N3 = np.cos(Gpol)
-    Tsig = _voigt_T(L1, L2, L3, M1, M2, M3, N1, N2, N3)
+    Tsig = borehole_transform(Gpol, Gazi)                      # (..., 6, 6)
     Tfs = Tsig.copy()
-    Tfs[4] *= -1; Tfs[5] *= -1
-    d = Tfs @ S_gg
-    sig = np.array([[d[0], d[5], d[4]], [d[5], d[1], d[3]], [d[4], d[3], d[2]]])
-    amat = Tsig.T @ amatte @ Tsig
+    Tfs[..., 4, :] *= -1; Tfs[..., 5, :] *= -1
+    d = Tfs @ S_gg                                             # (..., 6)
+    s00, s11, s22, s12, s02, s01 = (d[..., k, None] for k in range(6))
+    amat = np.einsum("...ji,jk,...kl->...il", Tsig, amatte, Tsig)
     theta = np.arange(0.0, 2 * np.pi + 1e-12, 0.01 * np.pi)
-    th = _thermal_voigt(amat, theta, Gtc, Gec) * 1e-6
+    th = _thermal_voigt(amat, theta, Gtc, Gec) * 1e-6          # (..., n_theta, 6)
     c, s = np.cos(theta), np.sin(theta)
     # rotated thermal tensor components needed: temp(3,3), temp(2,2), temp(2,3), temp(1,1)
-    t33 = th[:, 2]
-    t22 = s * s * th[:, 0] - 2 * c * s * th[:, 5] + c * c * th[:, 1]
-    t23 = -s * th[:, 4] + c * th[:, 3]
-    sig_zz = sig[2, 2] - 2 * v * (sig[0, 0] - sig[1, 1]) * np.cos(2 * theta) - 4 * v * sig[0, 1] * np.sin(2 * theta) + t33
-    sig_tt = (sig[0, 0] + sig[1, 1] - 2 * (sig[0, 0] - sig[1, 1]) * np.cos(2 * theta)
-              - 4 * sig[0, 1] * np.sin(2 * theta) - (Pmud - Pp) + t22)
-    tau_tz = 2 * (sig[1, 2] * c - sig[0, 2] * s) + t23
-    sig_tmax = 0.5 * (sig_zz + sig_tt + np.sqrt((sig_zz - sig_tt) ** 2 + 4 * tau_tz**2))
-    return sig_tmax
+    t33 = th[..., 2]
+    t22 = s * s * th[..., 0] - 2 * c * s * th[..., 5] + c * c * th[..., 1]
+    t23 = -s * th[..., 4] + c * th[..., 3]
+    sig_zz = s22 - 2 * v * (s00 - s11) * np.cos(2 * theta) - 4 * v * s01 * np.sin(2 * theta) + t33
+    sig_tt = (s00 + s11 - 2 * (s00 - s11) * np.cos(2 * theta)
+              - 4 * s01 * np.sin(2 * theta) - (Pmud - Pp) + t22)
+    tau_tz = 2 * (s12 * c - s02 * s) + t23
+    return 0.5 * (sig_zz + sig_tt + np.sqrt((sig_zz - sig_tt) ** 2 + 4 * tau_tz**2))
 
 
 def required_ucs(delta, phi, Pp, Pmud, v, S_g, amatte, Gtc=0.0, Gec=0.0) -> float:
@@ -620,6 +632,12 @@ def breakout_orientation(delta, phi, Pp, Pmud, v, S_g, amatte, Gtc=0.0, Gec=0.0)
     smax = _wall_stresses(delta, phi, Pp, Pmud, v, S_g, amatte, Gtc, Gec)
     idx = int(np.flatnonzero(np.round(smax, 5) == np.round(smax.max(), 5))[0])
     return (idx + 1) * 0.01 * np.pi
+
+
+def _first_max_angle(smax: np.ndarray) -> np.ndarray:
+    """breakout_orientation over the last axis of a batch of sig_tmax curves."""
+    hit = np.round(smax, 5) == np.round(smax.max(-1, keepdims=True), 5)
+    return (np.argmax(hit, axis=-1) + 1) * 0.01 * np.pi
 
 
 def stress_tensor_geographic(SHmax: float, Shmin: float, Sv: float) -> np.ndarray:
@@ -669,10 +687,10 @@ def all_orientations(E: float, v: float, Sx: float, Sy: float, Sz: float, Pp: fl
     phi = np.arange(0, np.pi / 2 + 1e-12, np.pi / 20)
     X = np.sqrt(2) * R * np.cos(np.pi / 2 - phi[None, :] / 2) * np.sin(delta[:, None])
     Y = np.sqrt(2) * R * np.cos(np.pi / 2 - phi[None, :] / 2) * np.cos(delta[:, None])
-    UCS = np.array([[required_ucs(d, f, Pp, Pmud_eff, v, S_g, amatte, dT, alpha) for f in phi] for d in delta])
+    UCS = _wall_stresses(delta[:, None], phi[None, :], Pp, Pmud_eff, v, S_g, amatte, dT, alpha).max(-1)
     d2 = np.arange(0, 2 * np.pi + 1e-12, np.pi / 12)
     f2 = np.arange(0, np.pi / 2 + 1e-12, np.pi / 12)
     X2 = np.sqrt(2) * R * np.cos(np.pi / 2 - f2[None, :] / 2) * np.sin(d2[:, None])
     Y2 = np.sqrt(2) * R * np.cos(np.pi / 2 - f2[None, :] / 2) * np.cos(d2[:, None])
-    OBB = np.array([[breakout_orientation(d, f, Pp, Pmud_eff, v, S_g, amatte, dT, alpha) for f in f2] for d in d2])
+    OBB = _first_max_angle(_wall_stresses(d2[:, None], f2[None, :], Pp, Pmud_eff, v, S_g, amatte, dT, alpha))
     return OrientationResult(delta, phi, X, Y, UCS, d2, f2, X2, Y2, OBB, R)

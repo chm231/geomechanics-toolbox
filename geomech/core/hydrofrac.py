@@ -26,7 +26,8 @@ from scipy.special import erfcx
 Model = Literal["PKN", "KGD", "radial"]
 
 # Root-finding bracket used by the MATLAB code: fzero(fun, [0 1.0e5])
-_BRACKET = (0.0, 1.0e5)
+# lower end > 0: at L = 0 the width is 0 and the Carter term becomes 0 * inf (NaN) when Sp = 0
+_BRACKET = (1.0e-12, 1.0e5)
 
 
 @dataclass(frozen=True)

@@ -72,3 +72,15 @@ def test_meshes_are_finite_and_shaped():
 def test_radial_requires_leakoff():
     with pytest.raises(ValueError):
         hf.evaluate("radial", hf.FracParams(E=20e9, nu=0.25, Q=0.05, mu=0.1), 100.0)
+
+
+@pytest.mark.parametrize("model", ["PKN", "KGD", "radial"])
+def test_leakoff_without_spurt_loss(model):
+    """C > 0 with Sp = 0 used to fail: the root bracket started at L = 0 where w = 0 and the
+    Carter term became 0 * inf. The lower bracket end is now a small positive length."""
+    p = hf.FracParams(E=2e10, nu=0.25, Q=0.05, mu=0.1, C=1e-4, Sp=0.0, h=30.0)
+    r = hf.simulate(model, p, 3600.0, 50)
+    assert np.isfinite(r.length).all() and np.all(np.diff(r.length) > 0)
+    # spurt loss only removes fluid: the same treatment with Sp > 0 gives a shorter fracture
+    r2 = hf.simulate(model, hf.FracParams(E=2e10, nu=0.25, Q=0.05, mu=0.1, C=1e-4, Sp=1e-3, h=30.0), 3600.0, 50)
+    assert r2.length[-1] < r.length[-1]

@@ -140,3 +140,65 @@ def test_config_and_presets_and_export(tmp_path):
         assert f["/fractures/centers"].shape == (dfn.n, 3) and f["/meta/site"][()] == b"custom"
     GX, GY, dens = rm.pole_density_equal_angle(dfn.normals)
     assert dens.shape == (80, 80) and np.isnan(dens[0, 0])
+
+
+# ----------------------------------------------------------------------------
+# Batched clipping (vectorised) against the per-fracture reference path
+# ----------------------------------------------------------------------------
+def _reference_clip(dfn, cb):
+    polys, idx = [], []
+    for i in np.flatnonzero(rm._candidates(dfn, cb)):
+        poly = rm.clip_disc(dfn.centers[i].astype(float), dfn.normals[i].astype(float), float(dfn.radii[i]), cb)
+        if poly is not None:
+            polys.append(poly); idx.append(i)
+    return polys, np.array(idx, int)
+
+
+def test_batched_clipping_equals_per_fracture_clipping():
+    dfn = rm.generate(rm.preset_sets("laxemar", 0.5, 250.0), size=40.0, seed=7)
+    cb = rm.crop_box_dict(12.0, center=(1.0, -2.0, 0.5))
+    c = rm.clip_to_crop_box(dfn, cb, chunk=3000)          # several chunks
+    ref, idx = _reference_clip(dfn, cb)
+    assert len(c.polygons) == len(ref) > 100
+    np.testing.assert_array_equal(c.index, idx)
+    np.testing.assert_array_equal(c.set_id, dfn.set_id[idx])
+    for a, b in zip(c.polygons, ref):
+        np.testing.assert_allclose(a, b, rtol=0, atol=1e-12)
+    area_ref = sum(sum(np.linalg.norm(np.cross(p[j] - p.mean(0), p[(j + 1) % len(p)] - p.mean(0))) / 2 for j in range(len(p))) for p in ref)
+    assert c.total_area == pytest.approx(area_ref, rel=1e-10)
+    assert c.p32 == pytest.approx(area_ref / 24.0**3, rel=1e-10)
+    np.testing.assert_allclose(c.lower, np.array([p.min(0) for p in ref]), atol=1e-12)
+    np.testing.assert_allclose(c.upper, np.array([p.max(0) for p in ref]), atol=1e-12)
+    # discs fully inside the box are passed through untouched (36 vertices)
+    inside = [len(p) == 36 for p in c.polygons]
+    assert any(inside) and not all(inside)
+
+
+def test_tunnel_subset_and_trace_maps_reuse_the_clipped_result():
+    from matplotlib.path import Path as MplPath
+    dfn = rm.generate(rm.preset_sets("forsmark", 1.0, 250.0), size=40.0, seed=3)
+    cb = rm.crop_box_dict(10.0)
+    c = rm.clip_to_crop_box(dfn, cb)
+    tunnel = np.array([[-3, -4], [3, -4], [3, 2], [0, 4], [-3, 2], [-3, -4]], float)
+    sub = rm.tunnel_subset(c, tunnel)
+    ref = np.array([MplPath(tunnel).contains_points(p[:, 1:3]).any() for p in c.polygons])
+    assert len(sub.polygons) == ref.sum() > 0
+    np.testing.assert_array_equal(sub.index, c.index[ref])
+    assert sub.total_area == pytest.approx(c.areas[ref].sum())
+    same = rm.clip_to_crop_box(dfn, cb, tunnel)
+    np.testing.assert_array_equal(same.index, sub.index)
+    for axis in "xyz":
+        a, b = rm.trace_map(c, cb, axis, 0.0), rm.trace_map(dfn, cb, axis, 0.0)
+        assert len(a.segments) == len(b.segments) > 0
+        np.testing.assert_array_equal(a.set_id, b.set_id)
+        np.testing.assert_allclose(np.array(a.segments), np.array(b.segments), atol=1e-12)
+        assert a.p21 == pytest.approx(b.p21)
+
+
+def test_empty_and_degenerate_clipping():
+    dfn = rm.generate(rm.preset_sets("forsmark", 0.5, 250.0), size=20.0, seed=1)
+    far = rm.crop_box_dict(2.0, center=(500.0, 0.0, 0.0))
+    c = rm.clip_to_crop_box(dfn, far)
+    assert c.polygons == [] and c.p32 == 0.0 and c.index.shape == (0,)
+    tm = rm.trace_map(c, far, "z", 0.0)
+    assert tm.segments == [] and tm.p21 == 0.0

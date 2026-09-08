@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 
 from geomech.core import borehole as bh
 from geomech.gui.mplcanvas import MplWidget
+from geomech.gui.worker import run_async
 
 
 def _edit(text: str, width: int = 70) -> QLineEdit:
@@ -271,25 +272,35 @@ class BoreholePanel(QWidget):
 
     # ---------------------------------------------------------------- run
     def run(self):
+        """Read the inputs on the GUI thread, solve in a worker thread, plot when done."""
         try:
+            p = self.params()
             if self.rb_one.isChecked():
-                p = self.params()
                 if self.rb_fem.isChecked():
-                    self.field = bh.fem_solution(p, int(self.in_rmesh.text()), int(self.in_thmesh.text()))
+                    rmesh, thmesh = int(self.in_rmesh.text()), int(self.in_thmesh.text())
+                    job, on_done = (lambda: bh.fem_solution(p, rmesh, thmesh)), self._on_field
                 else:
-                    self.field = bh.analytic_solution(p)
-                self.lbl_status.setText(f"{self.field.method} solution computed on a {self.field.St.shape[0]}×{self.field.St.shape[1]} grid.")
-                self.plot_stress()
-                self.tabs.setCurrentIndex(0)
+                    job, on_done = (lambda: bh.analytic_solution(p)), self._on_field
             else:
-                p = self.params()
-                self.orient = bh.all_orientations(float(self.in_E.text()), float(self.in_v.text()), p.Sx, p.Sy, p.Sz,
-                                                  p.Pp, p.Pmud, p.dT, p.alpha)
-                self._plot_orientations()
-                self.lbl_status.setText("All-orientation analysis computed (Sx = SHmax, Sy = Shmin, Sz = Sv).")
-                self.tabs.setCurrentWidget(self.plot_ucs)
+                E, v = float(self.in_E.text()), float(self.in_v.text())
+                job = lambda: bh.all_orientations(E, v, p.Sx, p.Sy, p.Sz, p.Pp, p.Pmud, p.dT, p.alpha)  # noqa: E731
+                on_done = self._on_orientations
         except Exception as e:  # noqa: BLE001
             QMessageBox.critical(self, "Borehole Stability", f"Run failed:\n{e}")
+            return
+        run_async(self, job, on_done, title="Borehole Stability", busy=(self.btn_run,), status=self.lbl_status)
+
+    def _on_field(self, field: bh.StressField):
+        self.field = field
+        self.lbl_status.setText(f"{field.method} solution computed on a {field.St.shape[0]}×{field.St.shape[1]} grid.")
+        self.plot_stress()
+        self.tabs.setCurrentIndex(0)
+
+    def _on_orientations(self, o: bh.OrientationResult):
+        self.orient = o
+        self._plot_orientations()
+        self.lbl_status.setText("All-orientation analysis computed (Sx = SHmax, Sy = Shmin, Sz = Sv).")
+        self.tabs.setCurrentWidget(self.plot_ucs)
 
     # -------------------------------------------------------------- plots
     def plot_stress(self):

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import numpy as np
+from matplotlib.collections import LineCollection
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -11,10 +12,13 @@ from PySide6.QtWidgets import (
 
 from geomech.core import dfn_rockmass as rm
 from geomech.gui.mplcanvas import MplWidget
+from geomech.gui.worker import run_async
 
 SET_COLORS = ["#4878CF", "#6ACC65", "#D65F5F", "#B47CC7", "#C4AD66", "#77BEDB", "#8C613C"]
 COLUMNS = ["Name", "P32 (m²/m³)", "Size dist.", "kr", "r0 (m)", "rmin (m)", "rmax (m)", "mu", "sigma", "Trend (°)", "Plunge (°)", "kappa"]
 MAX_FRACTURES = 3_000_000
+MAX_DISPLAY = 5000          # polygons drawn in the 3-D view (largest first); more makes rotation crawl
+EDGE_LIMIT = 2000           # draw polygon edges only up to this many
 
 
 def _edit(text: str, width: int = 70) -> QLineEdit:
@@ -29,6 +33,7 @@ class DFNRockMassPanel(QWidget):
         super().__init__(parent)
         self.dfn: rm.RockMassDFN | None = None
         self.tunnel: np.ndarray | None = None
+        self._clip_cache: tuple | None = None    # (key, ClippedDFN) shared by the 3-D view and trace maps
         self._build()
 
     def _build(self):
@@ -83,10 +88,13 @@ class DFNRockMassPanel(QWidget):
         grid.addWidget(QLabel("Crop box half-size (m)"), 0, 0); grid.addWidget(self.in_crop, 0, 1)
         b = QPushButton("Tunnel polygon (.dat)…"); b.clicked.connect(self.load_tunnel); grid.addWidget(b, 0, 2)
         self.lbl_tunnel = QLabel("no tunnel"); grid.addWidget(self.lbl_tunnel, 0, 3)
-        b = QPushButton("3D clipped DFN"); b.clicked.connect(lambda: self.plot_3d(False)); grid.addWidget(b, 1, 0)
-        b = QPushButton("Tunnel-intersecting only"); b.clicked.connect(lambda: self.plot_3d(True)); grid.addWidget(b, 1, 1)
-        b = QPushButton("2D trace maps"); b.clicked.connect(self.plot_traces); grid.addWidget(b, 1, 2)
-        b = QPushButton("Validation"); b.clicked.connect(self.plot_validation); grid.addWidget(b, 1, 3)
+        self.in_maxshow = _edit(str(MAX_DISPLAY))
+        grid.addWidget(QLabel("Max polygons shown"), 0, 4); grid.addWidget(self.in_maxshow, 0, 5)
+        self._plot_buttons = []
+        for col, (text, fn) in enumerate((("3D clipped DFN", lambda: self.plot_3d(False)),
+                                          ("Tunnel-intersecting only", lambda: self.plot_3d(True)),
+                                          ("2D trace maps", self.plot_traces), ("Validation", self.plot_validation))):
+            b = QPushButton(text); b.clicked.connect(fn); grid.addWidget(b, 1, col); self._plot_buttons.append(b)
         b = QPushButton("Export HDF5…"); b.clicked.connect(self.export_h5); grid.addWidget(b, 2, 0)
         b = QPushButton("Export CSV…"); b.clicked.connect(self.export_csv); grid.addWidget(b, 2, 1)
         left.addWidget(g)
@@ -169,18 +177,31 @@ class DFNRockMassPanel(QWidget):
         try:
             sets = self.sets()
             seed = int(float(self.in_seed.text())) if self.in_seed.text().strip() else None
-            self.dfn = rm.generate(sets, float(self.in_size.text()), seed, max_total=MAX_FRACTURES)
+            size = float(self.in_size.text())
         except Exception as e:  # noqa: BLE001
-            QMessageBox.critical(self, "Rock-mass DFN", f"Generation failed:\n{e}")
+            QMessageBox.critical(self, "Rock-mass DFN", f"Invalid input:\n{e}")
             return
-        d = self.dfn
+        run_async(self, rm.generate, self._on_generated, title="Rock-mass DFN generation",
+                  busy=(self.btn_gen, self.btn_count, *self._plot_buttons), status=self.lbl_info,
+                  args=(sets, size, seed), kwargs={"max_total": MAX_FRACTURES})
+
+    def _on_generated(self, dfn: rm.RockMassDFN):
+        self.dfn = dfn
+        self._clip_cache = None
         lines = [f"{s.name}: target N = {n:,}, scaled P32 = {p:.4f}, realized P32 = {q:.4f}"
-                 for s, n, p, q in zip(d.sets, d.targets, d.scaled_p32, d.realized_p32)]
-        self.lbl_info.setText("\n".join(lines) + f"\nTotal fractures: {d.n:,}")
+                 for s, n, p, q in zip(dfn.sets, dfn.targets, dfn.scaled_p32, dfn.realized_p32)]
+        self.lbl_info.setText("\n".join(lines) + f"\nTotal fractures: {dfn.n:,}")
         self.plot_3d(False)
 
     def _cb(self) -> dict:
         return rm.crop_box_dict(float(self.in_crop.text()))
+
+    def _clipped(self, cb: dict) -> rm.ClippedDFN:
+        """Crop-box clipping, cached per (DFN, crop box): the 3-D views and the three trace maps share it."""
+        key = (id(self.dfn), tuple(sorted(cb.items())))
+        if self._clip_cache is None or self._clip_cache[0] != key:
+            self._clip_cache = (key, rm.clip_to_crop_box(self.dfn, cb))
+        return self._clip_cache[1]
 
     def load_tunnel(self):
         path, _ = QFileDialog.getOpenFileName(self, "Tunnel polygon", "", "DAT files (*.dat);;All files (*)")
@@ -197,12 +218,32 @@ class DFNRockMassPanel(QWidget):
         if tunnel_only and self.tunnel is None:
             QMessageBox.information(self, "Rock-mass DFN", "Load a tunnel polygon first.")
             return
-        cb = self._cb()
-        c = rm.clip_to_crop_box(self.dfn, cb, self.tunnel if tunnel_only else None)
+        try:
+            cb = self._cb()
+        except ValueError as e:
+            QMessageBox.critical(self, "Rock-mass DFN", f"Invalid crop box:\n{e}")
+            return
+        run_async(self, self._clipped, lambda c: self._draw_3d(c, cb, tunnel_only), title="Crop-box clipping",
+                  busy=self._plot_buttons, args=(cb,))
+
+    def _draw_3d(self, c: rm.ClippedDFN, cb: dict, tunnel_only: bool):
+        if tunnel_only:
+            c = rm.tunnel_subset(c, self.tunnel)
+        try:
+            max_show = max(1, int(float(self.in_maxshow.text())))
+        except ValueError:
+            max_show = MAX_DISPLAY
         ax = self.plot3d.clear()
+        shown = len(c.polygons)
         if c.polygons:
-            col = Poly3DCollection(c.polygons, alpha=0.4, linewidth=0.3, edgecolor=(0.5, 0.5, 0.5))
-            col.set_facecolor([SET_COLORS[(s - 1) % len(SET_COLORS)] for s in c.set_id])
+            order = np.arange(len(c.polygons))
+            if len(order) > max_show:                     # keep the largest ones
+                order = np.sort(np.argsort(c.areas)[::-1][:max_show])
+            shown = len(order)
+            edges = shown <= EDGE_LIMIT
+            col = Poly3DCollection([c.polygons[i] for i in order], alpha=0.4,
+                                   linewidth=0.3 if edges else 0.0, edgecolor=(0.5, 0.5, 0.5) if edges else "none")
+            col.set_facecolor([SET_COLORS[(s - 1) % len(SET_COLORS)] for s in c.set_id[order]])
             ax.add_collection3d(col)
         xs, ys, zs = (cb["xmin"], cb["xmax"]), (cb["ymin"], cb["ymax"]), (cb["zmin"], cb["zmax"])
         for y in ys:
@@ -219,7 +260,8 @@ class DFNRockMassPanel(QWidget):
         ax.set_xlim(*xs); ax.set_ylim(*ys); ax.set_zlim(*zs); ax.set_box_aspect((1, 1, 1))
         ax.set_xlabel("x East [m]"); ax.set_ylabel("y North [m]"); ax.set_zlabel("z Up [m]")
         ax.set_title(f"Clipped DFN in crop box{' (tunnel-intersecting)' if tunnel_only else ''}: "
-                     f"{len(c.polygons)} fractures, P32 = {c.p32:.3f} m²/m³")
+                     f"{len(c.polygons)} fractures, P32 = {c.p32:.3f} m²/m³"
+                     + (f"\n(showing the {shown} largest; raise 'Max polygons shown' to see more)" if shown < len(c.polygons) else ""))
         ax.view_init(elev=20, azim=-35)
         self.plot3d.draw()
         self.tabs.setCurrentWidget(self.plot3d)
@@ -227,13 +269,23 @@ class DFNRockMassPanel(QWidget):
     def plot_traces(self):
         if self.dfn is None:
             return
-        cb = self._cb()
+        try:
+            cb = self._cb()
+        except ValueError as e:
+            QMessageBox.critical(self, "Rock-mass DFN", f"Invalid crop box:\n{e}")
+            return
+        run_async(self, self._clipped, lambda c: self._draw_traces(c, cb), title="Trace maps",
+                  busy=self._plot_buttons, args=(cb,))
+
+    def _draw_traces(self, c: rm.ClippedDFN, cb: dict):
         fig = self.plot_tr.figure; fig.clear()
         for k, axis in enumerate("xyz"):
-            tm = rm.trace_map(self.dfn, cb, axis, 0.0)
+            tm = rm.trace_map(c, cb, axis, 0.0)
             ax = fig.add_subplot(1, 3, k + 1)
-            for seg, s in zip(tm.segments, tm.set_id):
-                ax.plot(seg[:, tm.h_index], seg[:, tm.v_index], "-", color=SET_COLORS[(s - 1) % len(SET_COLORS)], lw=0.6)
+            if tm.segments:
+                segs = np.array(tm.segments)[:, :, [tm.h_index, tm.v_index]]      # (n, 2, 2)
+                ax.add_collection(LineCollection(segs, colors=[SET_COLORS[(s - 1) % len(SET_COLORS)] for s in tm.set_id],
+                                                 linewidths=0.6))
             lo = [cb["xmin"], cb["ymin"], cb["zmin"]]; hi = [cb["xmax"], cb["ymax"], cb["zmax"]]
             h, v = tm.h_index, tm.v_index
             ax.plot([lo[h], hi[h], hi[h], lo[h], lo[h]], [lo[v], lo[v], hi[v], hi[v], lo[v]], "k-", lw=1)

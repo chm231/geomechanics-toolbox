@@ -184,8 +184,9 @@ def pole_density(dip_deg, dipdir_deg, upper: bool, equal_angle: bool, r1: int = 
     i = np.arange(r1)[None, :]; j = np.arange(r2)[:, None]
     plu = i * np.pi / 2 / (r1 - 1); tre = j * 2 * np.pi / (r2 - 1)
     g = np.stack([np.cos(plu) * np.cos(tre), np.cos(plu) * np.sin(tre), np.broadcast_to(np.sin(plu), (r2, r1))], -1)
-    d2 = ((g[:, :, None, :] - vec[None, None, :, :]) ** 2).sum(-1)
-    result = (np.sqrt(d2) <= 2 * np.sin(theta / 2)).sum(-1) / n * 100
+    # |g - v| <= 2 sin(theta/2)  <=>  g . v >= cos(theta) for unit vectors: one matrix product
+    # instead of the (r2, r1, 2n, 3) distance array of the literal port
+    result = (g.reshape(-1, 3) @ vec.T >= np.cos(theta)).sum(-1).reshape(r2, r1) / n * 100
     x, y = project(np.broadcast_to(tre, (r2, r1)), np.broadcast_to(plu, (r2, r1)), upper, equal_angle)
     return x, y, result
 

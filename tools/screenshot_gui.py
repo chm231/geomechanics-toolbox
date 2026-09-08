@@ -11,6 +11,7 @@ from pathlib import Path
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
+from geomech.gui import worker
 from geomech.gui.app import Launcher
 from geomech.gui.hydrofrac_panel import HydrofracPanel
 from geomech.gui.thermal_panel import ThermalPanel
@@ -199,6 +200,7 @@ def main():
     out = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
     names = sys.argv[2:] or list(SCENARIOS)
     out.mkdir(parents=True, exist_ok=True)
+    worker.SYNC = True          # run the panels' background jobs inline so grabs see the result
     app = QApplication(sys.argv)
     launcher = Launcher()
     launcher.resize(520, 360)
