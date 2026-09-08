@@ -203,8 +203,12 @@ def verify(dfn: DFN) -> Verification:
     if p.size_model == "Negative exponential":
         vy2 = 1 / p.mean_len * np.exp(-vx2 / p.mean_len)
     else:
+        # truncated power law: the density lives on [trim, curt] only. MATLAB evaluates the
+        # formula from x = 0 (Inf at 0, huge values below trim), which squashes the chart and
+        # makes sum(vy2) infinite so the size reliability always reads 100 %.
         with np.errstate(divide="ignore"):
             vy2 = p.fracd * vx2 ** (-(p.fracd + 1)) / (p.trim ** -p.fracd - p.curt ** -p.fracd)
+        vy2 = np.where((vx2 >= p.trim) & (vx2 <= p.curt), vy2, 0.0)
     # aperture
     e3, c3 = _hist(dfn.aperture, n, nb)
     m = dfn.aperture.max(); vx3 = np.arange(0, m + 1e-12, m / (20 * nb))

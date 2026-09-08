@@ -102,3 +102,17 @@ def test_verification_and_export_roundtrip(tmp_path):
 def test_power_law_count():
     p = dfn.DFNParams(x0=10, y0=10, z0=10, fracd=2.5, trim=0.5, curt=10)
     assert p.power_law_count() == round(1000 * (0.5 ** -2.5 - 10 ** -2.5))
+
+
+def test_power_law_verification_pdf_is_truncated():
+    """The theoretical size pdf must be finite, zero outside [trim, curt], integrate to 1 and
+    give a meaningful (< 100 %) reliability; MATLAB's version is Inf at x = 0."""
+    p = dfn.DFNParams(n=100, size_model="Power law", fracd=2.0, trim=0.5, curt=10.0)
+    d = dfn.generate(p, seed=1)
+    v = dfn.verify(d)
+    x, y = v.pdf_x[1], v.pdf_y[1]
+    assert np.isfinite(y).all() and y.max() <= p.fracd * p.trim ** (-p.fracd - 1) / (p.trim ** -p.fracd - p.curt ** -p.fracd) + 1e-12
+    assert np.all(y[x < p.trim] == 0) and np.all(y[(x >= p.trim) & (x <= p.curt)] > 0)
+    assert np.trapezoid(y, x) == pytest.approx(1.0, abs=0.02)
+    assert 50 < v.reliability[1] < 100
+    assert v.hist_y[1].max() < 10          # histogram on the same scale as the pdf

@@ -111,7 +111,9 @@ python tools/make_reference_dfn_m.py        && matlab -batch "run('tools/gen_ref
   균열 크기와 무관하게 고정돼 있습니다. Python은 원판과 같은 방식으로 한 변이 l인 정사각형을 만듭니다.
   로그정규 개구폭은 원본이 평균 대신 균열 길이 l을 쓰는 오타가 있어 평균으로 고쳤습니다. 원본의
   'Normal'/'Log normal' 개구폭은 Statistics Toolbox가 없으면 실행되지 않습니다. 시추공 교차 판정은 원본처럼
-  심도 범위를 검사하지 않습니다.
+  심도 범위를 검사하지 않습니다. Verification의 Power law 크기 pdf는 원본이 x=0부터 계산해 0에서 Inf가
+  되고(그래프 y축이 수십만까지 늘어나 히스토그램이 안 보임), Σpdf=∞라 크기 신뢰도가 항상 100%로 나옵니다.
+  Python은 절단 분포답게 [min, max] 밖의 pdf를 0으로 두어 그래프와 신뢰도가 정상적으로 나옵니다.
 - Units: `Units.m`의 lbf/ft² 입력 환산계수 4.788은 10배 작은 값(1 lbf/ft² = 47.88 Pa, 출력 계수 0.02089는
   정상)이라 Python은 47.88을 씁니다. 단위 이름과 순서는 MATLAB 팝업 메뉴와 같아 `HFsim_units/*.txt`
   단위 세트 파일을 그대로 읽고 씁니다.
