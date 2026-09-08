@@ -181,6 +181,24 @@ Simulator_int        % 메인 런처 실행
 3. 산출물(`for_redistribution*`, `for_testing`)은 `.gitignore` 로 git 추적에서 제외됩니다.
    배포 파일은 GitHub Releases 에 첨부하는 방식을 권장합니다.
 
+### Python 실행 파일 (PyInstaller)
+
+MATLAB Runtime 없이 실행되는 단일 exe입니다.
+
+```bash
+pip install pyinstaller
+pyinstaller --noconfirm GeomechanicsToolbox.spec      # -> dist/GeomechanicsToolbox.exe (단일 파일, 콘솔 창 없음)
+dist/GeomechanicsToolbox.exe --smoke-test             # 모든 모듈 창을 열어 기본 계산을 실행하고 종료 (종료코드 0 = 정상)
+```
+
+- 빌드 설정은 `GeomechanicsToolbox.spec`, 진입 스크립트는 `tools/launch.py`입니다. GUI는 파일 대화상자로만
+  데이터를 읽으므로 데이터 파일은 넣지 않습니다.
+- 단일 파일 exe는 실행할 때마다 임시 폴더에 압축을 풀기 때문에 첫 창이 뜨기까지 몇 초 걸립니다.
+- 서명되지 않은 PyInstaller 실행 파일은 Windows SmartScreen이나 백신이 경고할 수 있습니다.
+- `--smoke-test`는 현재 폴더의 `geomech_smoke.log`에 결과를 남깁니다. 같은 절차가
+  `python tools/screenshot_gui.py out_dir`로 스크린샷을 저장합니다(`geomech/gui/smoke.py`).
+- `dist/`, `build/`, `*.exe`는 git에서 제외됩니다. 배포는 GitHub Releases에 첨부하는 방식을 권합니다.
+
 ## 버전 이력
 
 - v1.0 (2017) — 초기 GUIDE 기반 툴박스

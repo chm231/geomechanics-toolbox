@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -65,7 +66,12 @@ class Launcher(QMainWindow):
 
 
 def main(argv: list[str] | None = None) -> int:
-    app = QApplication.instance() or QApplication(argv or sys.argv)
+    argv = list(sys.argv if argv is None else argv)
+    if "--smoke-test" in argv:
+        # open every module, run its default case and exit (used to check a build / the exe)
+        from geomech.gui import smoke
+        return smoke.run(log=Path("geomech_smoke.log"))
+    app = QApplication.instance() or QApplication(argv)
     win = Launcher()
     win.show()
     return app.exec()
