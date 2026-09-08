@@ -34,7 +34,7 @@ MATLAB Runtime 없이 실행되는 Python(PySide6 + matplotlib) 버전으로 옮
 | Temperature Prediction | `geomech/core/thermal.py`, `thermal_project.py` | `geomech/gui/thermal_panel.py` | `tests/test_thermal.py` (5 케이스; Bodvarsson 1e-8, Talbot 역변환 모델 2e-3 °C) |
 | 3D Mohr Circle | `geomech/core/mohr.py` | `geomech/gui/mohr_panel.py` | `tests/test_mohr_aniso.py` (6 케이스, 1e-10; 방향코사인 해석해와도 일치) |
 | Strength Anisotropy | `geomech/core/anisotropy.py` | `geomech/gui/anisotropy_panel.py` | `tests/test_mohr_aniso.py` (4 케이스, 1e-10; Jaeger 식과 일치) |
-| Borehole Stability | 예정 | | |
+| Borehole Stability | `geomech/core/borehole.py` | `geomech/gui/borehole_panel.py` | `tests/test_borehole.py` (해석해 5, FEM 1, 전방위 3 케이스) |
 | Stereographic Projection | 예정 | | |
 | Units | `geomech/core/units.py` (일부) | | |
 | 3D DFN Generation | 예정 | | |
@@ -51,6 +51,8 @@ MATLAB 기준값 재생성(MATLAB 설치 필요):
 matlab -batch "run('tools/gen_reference_hydrofrac.m')"
 matlab -batch "run('tools/gen_reference_thermal.m')"
 matlab -batch "run('tools/gen_reference_mohr_aniso.m')"   # .mlapp 콜백의 계산부를 함수로 복사해 실행
+python tools/make_reference_borehole_m.py                  # BSA210831_v2.m 계산 블록을 그대로 잘라 함수로 감싼 .m 생성
+matlab -batch "run('tools/gen_reference_borehole.m')"
 ```
 
 이식 중 확인된 MATLAB 원본의 문제와 Python에서의 처리:
@@ -66,6 +68,16 @@ matlab -batch "run('tools/gen_reference_mohr_aniso.m')"   # .mlapp 콜백의 계
   β = 90° − φ 에서 0/0 = NaN 이 되지만 Python은 극한값 0을 씁니다.
 - 3D Mohr Circle은 원본과 같은 작도법(보조원 교점)으로 (σn, τn)을 구하며, 방향코사인 해석해와
   1e‑9 이내로 일치함을 테스트로 확인했습니다. 원본의 `vars.mat` 파일 교환은 없어졌습니다.
+- Borehole Stability(Ong 1994 해석해)는 원본의 다음 특성을 그대로 재현합니다(README와 코드 주석에 명시):
+  원거리 전단응력을 변환행렬에 (xz, yz, xy) 순서로 넣는 점(행렬은 yz, xz, xy 순서를 기대),
+  변위 퍼텐셜에서 (Tyz − i·Sz)를 쓰는 점, 중근 분리를 위해 μ에 1.0001~1.0003을 곱하는 점
+  (등방성 Kirsch 해와 3e‑4 상대 차이의 원인). "3D Elastic Modulus Matrix" 입력은 원본이 강성행렬을
+  컴플라이언스로 그대로 사용하지만 Python은 역행렬을 취해 올바르게 처리합니다.
+- FEM은 원본이 7,320×7,320 밀집행렬을 `pinv`로 풀고 5000×5000 격자로 보간하던 것을, 희소행렬 +
+  강체운동 구속(최소노름 해와 동일)과 400×400 보간으로 바꿔 기본 격자(60×56)에서 1초 안에 끝납니다.
+  요소 중심 응력은 MATLAB과 1e‑6 이내로 일치합니다.
+- Breakout 기하(Rbbo, θbbo) 계산은 원본이 각도 인덱스가 배열 밖으로 나가면 오류가 나지만 Python은
+  둘레 방향으로 순환 처리합니다.
 
 ## 폴더 구조
 

@@ -84,8 +84,35 @@ def anisotropy_steps(out: Path):
     return panel, [s1]
 
 
+def borehole_steps(out: Path):
+    from geomech.gui.borehole_panel import BoreholePanel
+    panel = BoreholePanel()
+    panel.resize(1300, 800)
+    panel.show()
+
+    def s1():
+        panel.cb_fluid.setChecked(True); panel.in_Pmud.setText("15")
+        panel.cb_fail.setChecked(True)
+        panel.run()
+        panel.grab().save(str(out / "borehole_contour.png"))
+        panel.in_loc_r.setText("0.1"); panel.in_loc_th.setText("90")
+        panel.local_analysis()
+        panel.grab().save(str(out / "borehole_local.png"))
+        panel.rb_all.setChecked(True)
+        panel.run()
+        panel.grab().save(str(out / "borehole_ucs.png"))
+        panel.tabs.setCurrentWidget(panel.plot_obb)
+        panel.grab().save(str(out / "borehole_obb.png"))
+        panel.rb_one.setChecked(True); panel.rb_fem.setChecked(True)
+        panel.run()
+        panel.grab().save(str(out / "borehole_fem.png"))
+        panel.close()
+
+    return panel, [s1]
+
+
 SCENARIOS = {"hydrofrac": hydrofrac_steps, "thermal": thermal_steps,
-             "mohr": mohr_steps, "anisotropy": anisotropy_steps}
+             "mohr": mohr_steps, "anisotropy": anisotropy_steps, "borehole": borehole_steps}
 
 
 def main():

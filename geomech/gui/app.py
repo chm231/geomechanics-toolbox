@@ -10,13 +10,14 @@ from PySide6.QtWidgets import (
 
 from geomech import __version__
 from geomech.gui.anisotropy_panel import AnisotropyPanel
+from geomech.gui.borehole_panel import BoreholePanel
 from geomech.gui.hydrofrac_panel import HydrofracPanel
 from geomech.gui.mohr_panel import MohrPanel
 from geomech.gui.thermal_panel import ThermalPanel
 
 # (label, factory or None while not yet ported) - order follows Simulator_int.mlapp
 MODULES = [
-    ("Borehole Stability", None),
+    ("Borehole Stability", BoreholePanel),
     ("Hydrofracturing Estimation", HydrofracPanel),
     ("Hydroshearing Estimation", None),
     ("Temperature Prediction", ThermalPanel),
