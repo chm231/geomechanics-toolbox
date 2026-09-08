@@ -186,6 +186,9 @@ class BoreholePanel(QWidget):
         self.btn_bbo = QPushButton("Breakout geometry"); self.btn_bbo.clicked.connect(self.show_breakout)
         self.btn_save = QPushButton("Save raw data…"); self.btn_save.clicked.connect(self.save_raw)
         grid.addWidget(self.btn_bbo, 4, 0, 1, 3); grid.addWidget(self.btn_save, 5, 0, 1, 3)
+        self.cb_fail.toggled.connect(self._failure_changed)          # failure lines follow the criteria
+        for e in (self.in_ucs, self.in_fric, self.in_ten):
+            e.editingFinished.connect(self._failure_changed)
         top.addWidget(g)
         v.addLayout(top)
         self.lbl_bbo = QLabel("")
@@ -379,15 +382,39 @@ class BoreholePanel(QWidget):
         self.plot_local.draw()
         self.tabs.setCurrentIndex(1)
 
-    def show_breakout(self):
+    def show_breakout(self, replot: bool = True):
+        """Breakout depth / width for the current failure criteria; the failure contours on the
+        stress plot are redrawn as well so that the numbers and the black line agree."""
         if self.field is None:
             return
-        s = self.strength()
+        try:
+            s = self.strength()
+        except ValueError as e:
+            QMessageBox.critical(self, "Borehole Stability", f"Invalid failure criteria:\n{e}")
+            return
         if s is None:
             QMessageBox.information(self, "Borehole Stability", "Enable 'Apply failure criteria' first.")
             return
         rbbo, thbbo = bh.breakout_geometry(self.field, s)
         self.lbl_bbo.setText(f"Breakout (Mohr-Coulomb):  Rbbo = {rbbo:.5f} m,  θbbo = {thbbo:.3f}°")
+        if replot and self.rb_contour.isChecked():
+            self.plot_stress()
+
+    def _failure_changed(self):
+        """UCS / friction / tensile strength edited or the criteria switched: redraw the failure
+        contours of the stress plot and refresh the breakout numbers when they are shown."""
+        if self.field is None:
+            return
+        try:
+            s = self.strength()
+        except ValueError:
+            return                                   # incomplete number while typing; keep the last plot
+        if s is None:
+            self.lbl_bbo.setText("")
+        elif self.lbl_bbo.text():
+            self.show_breakout(replot=False)
+        if self.rb_contour.isChecked():
+            self.plot_stress()
 
     def save_raw(self):
         if self.field is None:
